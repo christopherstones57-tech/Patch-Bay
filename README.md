@@ -164,3 +164,9 @@ Opening `index.html` from the Files app (`file://`) does not work: ES modules an
 the AudioWorklet need a real https address. **Run** publishes to the preview link,
 which opens in FreeMilk's own browser, and **Go Live** to the public one, which is
 the link to open in Safari — the microphone is allowed there.
+
+## Licence
+
+Patch Bay is released under the MIT licence — see `LICENSE`. The bundled WASM
+decoders in `js/lib` are MIT too, credited above.
+
