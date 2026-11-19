@@ -158,10 +158,99 @@ function addModuleOfType(type) {
   toast(DEFS[type].name + ' added');
 }
 
+// A typed word reaches a whole family of modules, not only the ones whose
+// description happens to use it: osc for the oscillators, gen for the one-shot
+// sound generators, fx for the processors, seq for the things that run in
+// steps. Plain synonyms ride along with each family.
+const SEARCH_GROUPS = [
+  {
+    words: 'osc oscillator synth synthesiser voice tone pitch lead drone',
+    types: ['vco', 'harmonic', 'sync', 'metal', 'chip', 'supersaw', 'fmosc', 'pulse', 'wavetable', 'vox']
+  },
+  {
+    words: 'source sound instrument sample noise string',
+    types: ['vco', 'noise', 'sampler', 'pluck', 'drum']
+  },
+  {
+    words: 'fx effect filter processor distortion shape',
+    types: ['vcf', 'comb', 'vowel', 'phaser', 'eq', 'chorus', 'delay', 'reverb', 'drive', 'crusher', 'ringmod', 'folder', 'octaver', 'comp', 'trance']
+  },
+  {
+    words: 'gen generator sfx one-shot percussion hit drum',
+    types: ['drum', 'zap', 'riser', 'clang', 'boom', 'blip', 'ping', 'siren', 'whistle', 'glass', 'splash', 'bounce', 'sparkle', 'thunder', 'subdrop', 'clap', 'cowbell', 'boing', 'buzz', 'tweet', 'glitch']
+  },
+  {
+    words: 'seq sequencer step pattern rhythm arpeggio trigger clock tempo',
+    types: ['seq', 'turing', 'arp', 'clock', 'trance']
+  },
+  {
+    words: 'cv control voltage modulation mod env envelope glide',
+    types: ['lfo', 'adsr', 'random', 'slew', 'atten', 'transpose', 'cvmix', 'multiple', 'clock']
+  },
+  {
+    words: 'utility util routing mix master level split scope visual',
+    types: ['mixer', 'cvmix', 'multiple', 'atten', 'transpose', 'output', 'scope']
+  }
+];
+
+// One lowercase string per module for the search to look through: its type id,
+// its name, its description and the words of every family it belongs to.
+function moduleSearchText(type) {
+  const def = DEFS[type];
+  let text = type + ' ' + def.name + ' ' + (MODULE_INFO[type] || '');
+  for (const group of SEARCH_GROUPS) {
+    if (group.types.includes(type)) text += ' ' + group.words;
+  }
+  return text.toLowerCase();
+}
+
+// { node, text }: a picker option and what it matches.
+let moduleSearch = [];
+
+function showModuleMatches(query) {
+  const terms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 0);
+  let shown = 0;
+  for (const entry of moduleSearch) {
+    const hit = terms.every((t) => entry.text.includes(t));
+    entry.node.hidden = !hit;
+    if (hit) shown++;
+  }
+
+  const list = document.getElementById('module-list');
+  if (list) list.scrollTop = 0;
+
+  const hint = document.getElementById('module-hint');
+  if (hint) {
+    if (!terms.length) {
+      hint.textContent = 'Tap a module to add it to the rack. It patches itself in automatically.';
+    } else if (!shown) {
+      hint.textContent = 'No module matches “' + query.trim() + '” — try osc, gen, fx or seq.';
+    } else {
+      hint.textContent = shown + ' of ' + moduleSearch.length + ' modules match “' + query.trim() + '”';
+    }
+  }
+
+  const clear = document.getElementById('module-search-clear');
+  if (clear) clear.hidden = query.trim().length === 0;
+}
+
+function setModuleSearch(value) {
+  const input = document.getElementById('module-search');
+  if (input && input.value !== value) input.value = value;
+  showModuleMatches(value);
+}
+
+function clearModuleSearch(focus) {
+  setModuleSearch('');
+  const input = document.getElementById('module-search');
+  if (input && focus) input.focus();
+}
+
 function buildModulePicker() {
   const list = document.getElementById('module-list');
   if (!list) return;
   list.innerHTML = '';
+  moduleSearch = [];
   for (const type of Object.keys(DEFS)) {
     const def = DEFS[type];
     const b = document.createElement('button');
@@ -176,12 +265,17 @@ function buildModulePicker() {
       closeModulePicker();
     });
     list.appendChild(b);
+    moduleSearch.push({ node: b, text: moduleSearchText(type) });
   }
+  setModuleSearch('');
 }
 
 function openModulePicker() {
   const sheet = document.getElementById('module-sheet');
   if (!sheet) return;
+  // Every visit starts with the full list, so an old search never hides a
+  // module someone is looking for now.
+  setModuleSearch('');
   const list = document.getElementById('module-list');
   if (list) list.scrollTop = 0;
   sheet.classList.add('open');
@@ -193,6 +287,8 @@ function closeModulePicker() {
   if (!sheet) return;
   sheet.classList.remove('open');
   sheet.setAttribute('aria-hidden', 'true');
+  const search = document.getElementById('module-search');
+  if (search) search.blur();
 }
 
 function wireModulePicker() {
@@ -202,8 +298,20 @@ function wireModulePicker() {
   if (close) close.addEventListener('click', closeModulePicker);
   const backdrop = document.querySelector('.sheet-backdrop');
   if (backdrop) backdrop.addEventListener('click', closeModulePicker);
+
+  const search = document.getElementById('module-search');
+  if (search) search.addEventListener('input', () => showModuleMatches(search.value));
+  const clear = document.getElementById('module-search-clear');
+  if (clear) clear.addEventListener('click', () => clearModuleSearch(true));
+
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModulePicker();
+    if (e.key !== 'Escape') return;
+    // Escape drops the search first, and closes the picker on the next press.
+    if (search && search.value) {
+      clearModuleSearch(true);
+      return;
+    }
+    closeModulePicker();
   });
 }
 

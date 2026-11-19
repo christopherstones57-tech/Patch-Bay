@@ -50,8 +50,13 @@ whole routing.
 
 **Build your own** — **Clear rack** removes every module and cable so you can
 start from nothing. **+ Add module** opens a picker that describes what each
-module is for; tap one to add it. The first module you add brings its own Output
-so the rack still makes sound, and **Default rack** puts the starting patch back.
+module is for; tap one to add it. A search box at the top of the picker narrows
+the list as you type: `osc` for the oscillators, `gen` for the one-shot sound
+generators, `fx` for the effects, `seq` for the step sequencers, or any
+module's name — `supersaw`, `filt`, `delay` — and the hint above the list counts
+the matches. **Clear** or Escape empties the search again. The first module you
+add brings its own Output so the rack still makes sound, and **Default rack**
+puts the starting patch back.
 The rack, its cables and the recorded channels are kept on the device, so a
 reload brings them back as they were; a loaded or recorded sample is the one thing
 that lives only as long as the page.

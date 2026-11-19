@@ -65,7 +65,11 @@
       <h2 id="module-sheet-title">Add a module</h2>
       <button id="sheet-close" type="button">Close</button>
     </div>
-    <p class="sheet-hint">Tap a module to add it to the rack. It patches itself in automatically.</p>
+    <div class="sheet-search">
+      <input id="module-search" type="search" placeholder="Search modules — osc, gen, fx, seq…" aria-label="Search modules" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search">
+      <button id="module-search-clear" class="sheet-search-clear" type="button" hidden>Clear</button>
+    </div>
+    <p class="sheet-hint" id="module-hint">Tap a module to add it to the rack. It patches itself in automatically.</p>
     <div class="sheet-list" id="module-list"></div>
   </div>
 </div>

@@ -145,6 +145,37 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   color: var(--muted);
 }
 
+/* Search box above the module list. Its own Clear button replaces the browser's
+   native one, so every browser offers the same way out of a search. */
+.sheet-search {
+  display: flex;
+  gap: 6px;
+  padding: 10px 12px 0;
+}
+.sheet-search input {
+  flex: 1;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: #10141b;
+  color: var(--text);
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 12px;
+}
+.sheet-search input::placeholder { color: #5f6779; }
+.sheet-search input:focus {
+  outline: none;
+  border-color: #2b6b70;
+  background: #0d1a1c;
+}
+.sheet-search-clear {
+  font-size: 10px;
+  padding: 6px 9px;
+}
+
 .sheet-list {
   display: grid;
   gap: 6px;
@@ -166,6 +197,8 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   background: hsl(var(--hue) 30% 14%);
   border-color: hsl(var(--hue) 40% 27%);
 }
+/* A plain [hidden] rule is not enough against the flex display above. */
+.module-option[hidden] { display: none; }
 .module-option-name {
   font-size: 12px;
   letter-spacing: 0.06em;
