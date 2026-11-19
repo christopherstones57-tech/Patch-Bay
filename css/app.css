@@ -445,6 +445,14 @@ canvas.scope {
   gap: 6px;
 }
 
+/* A published FreeMilk page carries a fixed "Made with FreeMilk" badge in the
+   bottom right corner, over the app. It paints above the keyboard and the
+   octave button, so taps there land on the badge instead: reserve its height
+   below the transport on any page that has one. */
+body:has(> freemilk-badge) #transport {
+  padding-bottom: calc(6px + env(safe-area-inset-bottom) + 48px);
+}
+
 #song-info {
   font-size: 10px;
   color: var(--muted);
