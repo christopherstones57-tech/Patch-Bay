@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0b0d12">
+<title>Patch Bay</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="bar-row">
+      <button id="btn-start" class="primary" type="button">Start audio</button>
+      <label class="mini">Vol
+        <input id="master" type="range" min="0" max="1" step="0.01" value="0.8">
+      </label>
+      <label class="mini">BPM
+        <input id="bpm" type="number" min="40" max="240" step="1" value="120">
+      </label>
+      <button id="btn-add-module" class="primary" type="button">+ Add module</button>
+      <button id="btn-autopatch" type="button">Auto-patch</button>
+      <button id="btn-clear-rack" type="button">Clear rack</button>
+      <button id="btn-reset" type="button">Default rack</button>
+    </div>
+  </header>
+
+  <main id="rack">
+    <div id="board">
+      <svg id="cables"><g id="cable-layer"></g><path id="temp" class="cable temp" d=""></path></svg>
+    </div>
+  </main>
+
+  <footer id="transport">
+    <div class="bar-row chan-row" id="channel-bar">
+      <span class="chan-label">Ch</span>
+      <button class="chan on" type="button" data-channel="0" aria-label="Record to channel 1">1</button>
+      <button class="chan" type="button" data-channel="1" aria-label="Record to channel 2">2</button>
+      <button class="chan" type="button" data-channel="2" aria-label="Record to channel 3">3</button>
+      <button class="chan" type="button" data-channel="3" aria-label="Record to channel 4">4</button>
+      <button id="btn-mix" type="button">Mix</button>
+    </div>
+    <div class="bar-row">
+      <button id="btn-rec" type="button">&#9679; Rec</button>
+      <button id="btn-play" type="button">&#9654; Play</button>
+      <button id="btn-loop" type="button">Loop</button>
+      <button id="btn-mic" type="button">Mic</button>
+      <button id="btn-rec-sample" type="button">Rec sample</button>
+      <span id="song-info">0 notes</span>
+      <button id="btn-wav" type="button">WAV</button>
+      <button id="btn-ogg" type="button">OGG</button>
+      <button id="btn-clear-song" type="button">Clear song</button>
+    </div>
+    <div id="keyboard-wrap">
+      <button id="oct-down" type="button" aria-label="Octave down">&minus;</button>
+      <div id="keys" class="keys"></div>
+      <button id="oct-up" type="button" aria-label="Octave up">+</button>
+    </div>
+  </footer>
+</div>
+<div id="module-sheet" class="sheet" aria-hidden="true">
+  <div class="sheet-backdrop"></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="module-sheet-title">
+    <div class="sheet-head">
+      <h2 id="module-sheet-title">Add a module</h2>
+      <button id="sheet-close" type="button">Close</button>
+    </div>
+    <p class="sheet-hint">Tap a module to add it to the rack. It patches itself in automatically.</p>
+    <div class="sheet-list" id="module-list"></div>
+  </div>
+</div>
+<div id="mix-sheet" class="sheet" aria-hidden="true">
+  <div class="sheet-backdrop"></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="mix-sheet-title">
+    <div class="sheet-head">
+      <h2 id="mix-sheet-title">Mix down</h2>
+      <button id="mix-sheet-close" type="button">Close</button>
+    </div>
+    <p class="sheet-hint" id="mix-summary">Nothing recorded yet.</p>
+    <div class="sheet-list">
+      <button id="mix-wav" class="module-option mix-option" type="button">
+        <span class="module-option-name">WAV</span>
+        <span class="module-option-desc">Renders all four channels offline, faster than real time. Lossless and plays anywhere.</span>
+      </button>
+      <button id="mix-flac" class="module-option mix-option" type="button">
+        <span class="module-option-name">FLAC</span>
+        <span class="module-option-desc">The same offline mix, compressed losslessly. The Sampler can load it back in.</span>
+      </button>
+      <button id="mix-ogg" class="module-option mix-option" type="button">
+        <span class="module-option-name">OGG</span>
+        <span class="module-option-desc">Recorded live as the mix plays, so it is small. Needs a browser that records Ogg.</span>
+      </button>
+    </div>
+  </div>
+</div>
+<div id="toast"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
