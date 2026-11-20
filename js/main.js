@@ -11,7 +11,8 @@ import {
   addCard,
   scheduleCables,
   startScopeLoop,
-  revealModule
+  revealModule,
+  renderPatchMap
 } from './patchbay.js';
 import { initKeyboard, updateSongInfo, stopPlayback } from './keyboard.js';
 import { exportWav, exportFlac, exportOgg, oggMime } from './export.js';
@@ -353,6 +354,42 @@ function clearRack() {
   toast('Rack cleared — add modules with + Add module');
 }
 
+// Patch view -------------------------------------------------------------
+
+// The whole patch, drawn to fit the screen: every module and every cable at
+// once, so a rack too big to see in the scrolling view can be read at a glance.
+// Tapping a module in the map jumps back to its card in the rack.
+function openPatchView() {
+  const view = document.getElementById('patch-view');
+  if (!view) return;
+
+  hideToast();
+  const counts = renderPatchMap(document.getElementById('patch-map'));
+
+  const info = document.getElementById('patch-view-info');
+  if (info) {
+    info.textContent = counts.modules
+      ? counts.modules +
+        (counts.modules === 1 ? ' module · ' : ' modules · ') +
+        counts.cables +
+        (counts.cables === 1 ? ' cable' : ' cables')
+      : '';
+  }
+
+  const empty = document.getElementById('patch-view-empty');
+  if (empty) empty.hidden = counts.modules > 0;
+
+  view.classList.add('open');
+  view.setAttribute('aria-hidden', 'false');
+}
+
+function closePatchView() {
+  const view = document.getElementById('patch-view');
+  if (!view || !view.classList.contains('open')) return;
+  view.classList.remove('open');
+  view.setAttribute('aria-hidden', 'true');
+}
+
 // Mix down ---------------------------------------------------------------
 
 const MIX_LABELS = { wav: 'WAV', flac: 'FLAC', ogg: 'OGG' };
@@ -460,6 +497,21 @@ function wireToolbar() {
   document.getElementById('btn-reset').addEventListener('click', resetAll);
   document.getElementById('btn-clear-rack').addEventListener('click', clearRack);
 
+  const patchView = document.getElementById('btn-patch-view');
+  if (patchView) patchView.addEventListener('click', openPatchView);
+  const patchClose = document.getElementById('patch-view-close');
+  if (patchClose) patchClose.addEventListener('click', closePatchView);
+  const patchMap = document.getElementById('patch-map');
+  if (patchMap) {
+    patchMap.addEventListener('click', (e) => {
+      const box = e.target.closest ? e.target.closest('.map-module') : null;
+      if (!box) return;
+      const id = box.getAttribute('data-module');
+      closePatchView();
+      if (id) revealModule(id);
+    });
+  }
+
   document.getElementById('btn-wav').addEventListener('click', () => runExport('wav', 'btn-wav'));
   document.getElementById('btn-ogg').addEventListener('click', () => runExport('ogg', 'btn-ogg'));
 
@@ -504,7 +556,10 @@ function init() {
   document.addEventListener('pointerdown', unlockAudio, { passive: true });
 
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeMixSheet();
+    if (e.key === 'Escape') {
+      closeMixSheet();
+      closePatchView();
+    }
   });
 
   // A message gets out of the way as soon as the transport is touched, and

@@ -20,6 +20,7 @@
       </label>
       <button id="btn-add-module" class="primary" type="button">+ Add module</button>
       <button id="btn-autopatch" type="button">Auto-patch</button>
+      <button id="btn-patch-view" type="button">Patch view</button>
       <button id="btn-clear-rack" type="button">Clear rack</button>
       <button id="btn-reset" type="button">Default rack</button>
     </div>
@@ -96,6 +97,18 @@
       </button>
     </div>
   </div>
+</div>
+<div id="patch-view" role="dialog" aria-modal="true" aria-labelledby="patch-view-title" aria-hidden="true">
+  <div class="patch-view-head">
+    <h2 id="patch-view-title">Patch view</h2>
+    <span id="patch-view-info"></span>
+    <button id="patch-view-close" type="button">Close</button>
+  </div>
+  <div class="patch-view-body">
+    <svg id="patch-map" aria-label="Map of every module and cable in the rack"></svg>
+    <p class="patch-view-empty" id="patch-view-empty" hidden>The rack is empty — add modules with + Add module.</p>
+  </div>
+  <p class="patch-view-hint">Tap a module to jump to its card in the rack.</p>
 </div>
 <div id="toast"></div>
 <script type="module" src="js/main.js"></script>

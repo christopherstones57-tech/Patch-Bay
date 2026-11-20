@@ -64,6 +64,12 @@ that lives only as long as the page.
 **Manual patching** — drag from a port to another port, or tap one port and then
 the other. Tap a cable to unplug it.
 
+**Patch view** — a button in the toolbar shows the whole patch full screen: every
+module and every cable in the rack, drawn to fit the screen at once, so a rack
+larger than the scrolling view can be read at a glance. The header counts the
+modules and cables. Tap a module in the map to close the view and jump to its
+card in the rack. Close with the button or Escape.
+
 **Virtual MIDI keyboard** — two octaves plus the top C, glissando by sliding a
 finger, octave buttons, and `a w s e d f t g y h u j k` on a computer keyboard.
 

@@ -283,11 +283,21 @@ async function onFileChange(e) {
   }
 }
 
+// A brief glow so a card is easy to spot after the rack has scrolled to it —
+// the module a Patch view tap jumped to, or one that was just added.
+function flashCard(card) {
+  card.classList.remove('flash');
+  void card.offsetWidth;
+  card.classList.add('flash');
+  setTimeout(() => card.classList.remove('flash'), 1400);
+}
+
 // Scrolls the rack so a module card is on screen (used after adding one).
 export function revealModule(id) {
   if (!boardEl || !rackEl) return;
   const card = boardEl.querySelector(`.card[data-id="${id}"]`);
   if (!card) return;
+  flashCard(card);
   const top = Math.max(0, card.offsetTop - 16);
   const left = Math.max(0, card.offsetLeft - 16);
   if (typeof rackEl.scrollTo === 'function') {
@@ -379,6 +389,92 @@ function renderCables() {
     html += `<path class="cable" data-id="${c.id}" style="stroke:hsl(${hue} 85% 62%)" d="${bez(p1, p2)}" />`;
   }
   layerEl.innerHTML = html;
+}
+
+// Patch view ----------------------------------------------------------------
+
+// A full-screen map of the whole patch: every card, its ports and every cable,
+// fitted to the screen. It is measured from the live cards, so the map matches
+// the rack however the cards are arranged. Returns what the map holds.
+export function renderPatchMap(svg) {
+  if (!svg || !boardEl) return { modules: 0, cables: 0 };
+
+  const PAD = 46;
+  const boxes = [];
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+
+  for (const card of boardEl.querySelectorAll('.card')) {
+    const mod = getModule(card.dataset.id);
+    if (!mod || !DEFS[mod.type]) continue;
+    const x = card.offsetLeft;
+    const y = card.offsetTop;
+    const w = card.offsetWidth;
+    const h = card.offsetHeight;
+    if (!w || !h) continue;
+    boxes.push({ mod, def: DEFS[mod.type], x, y, w, h, el: card });
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + w);
+    maxY = Math.max(maxY, y + h);
+  }
+
+  // An empty rack still gets a frame, so the view is never a blank screen.
+  if (!boxes.length) {
+    minX = 24;
+    minY = 24;
+    maxX = 616;
+    maxY = 384;
+  } else {
+    minX -= PAD;
+    minY -= PAD;
+    maxX += PAD;
+    maxY += PAD;
+  }
+
+  svg.setAttribute('viewBox', `${minX} ${minY} ${maxX - minX} ${maxY - minY}`);
+  svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+
+  // Cables first, so the cards sit on top of them, as in the rack.
+  let markup = '';
+  let cables = 0;
+  for (const c of app.state.cables) {
+    const outEl = findPort(c.from.id, c.from.port, 'out');
+    const inEl = findPort(c.to.id, c.to.port, 'in');
+    if (!outEl || !inEl) continue;
+    const p1 = portCenter(outEl);
+    const p2 = portCenter(inEl);
+    const mod = getModule(c.from.id);
+    const hue = mod && DEFS[mod.type] ? DEFS[mod.type].hue : 210;
+    cables++;
+    markup += `<path class="map-cable" style="stroke:hsl(${hue} 85% 62%)" d="${bez(p1, p2)}" />`;
+  }
+
+  for (const box of boxes) {
+    const hue = box.def.hue;
+    markup +=
+      `<g class="map-module" data-module="${box.mod.id}">` +
+      `<rect x="${box.x}" y="${box.y}" width="${box.w}" height="${box.h}" rx="14" ` +
+      `style="fill:hsl(${hue} 30% 14%);stroke:hsl(${hue} 42% 34%)" />` +
+      `<text class="map-name" x="${box.x + 18}" y="${box.y + 34}" ` +
+      `style="fill:hsl(${hue} 72% 82%)">${escapeHtml(box.def.name.toUpperCase())}</text>`;
+
+    for (const portEl of box.el.querySelectorAll('.port')) {
+      const p = portCenter(portEl);
+      const cv = portEl.classList.contains('kind-cv');
+      const dash = cv ? ' stroke-dasharray="4.5 4.5"' : '';
+      markup +=
+        `<circle cx="${Math.round(p.x)}" cy="${Math.round(p.y)}" r="8" ` +
+        `style="fill:#0a0d13;stroke:hsl(${hue} ${cv ? '40% 70%' : '70% 55%'})"${dash} />`;
+    }
+
+    markup += '</g>';
+  }
+
+  svg.innerHTML = markup;
+  return { modules: boxes.length, cables };
 }
 
 function onCableClick(e) {
