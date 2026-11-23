@@ -343,6 +343,8 @@ cutoff inputs do the same, so modulation stays musical.
 - `js/visualiser.js` — the full-screen audio visualiser
 - `js/demo.js` — the demo tunes and the rack each one is played on
 - `js/main.js` — bootstrap, module picker, toolbar
+- `js/splash.js` — the title card on the way in: its letters, its fit to the window, and its tune
+- `js/counter.js` — the visitors chip in the title row, counted by Abacus
 
 ## Hosting it
 
@@ -354,21 +356,31 @@ serves files over https, and it runs there unchanged:
 
 - `index.html`
 - `css/app.css`
-- `js/app.js`, `autopatch.js`, `click.js`, `decode-audio.js`, `demo.js`,
-  `engine.js`,
-  `export.js`, `keyboard.js`, `lyric-recorder-worklet.js`, `lyrics.js`,
-  `main.js`, `modules.js`, `output-route.js`, `patchbay.js`, `persist.js`,
-  `presets.js`, `sample-recorder.js`, `sample-recorder-worklet.js`,
-  `song-file.js`, `visualiser.js`, `voices.js`
+- `js/app.js`, `autopatch.js`, `click.js`, `counter.js`, `decode-audio.js`,
+  `demo.js`, `engine.js`, `export.js`, `keyboard.js`,
+  `lyric-recorder-worklet.js`, `lyrics.js`, `main.js`, `modules.js`,
+  `output-route.js`, `patchbay.js`, `persist.js`, `presets.js`,
+  `sample-recorder.js`, `sample-recorder-worklet.js`, `song-file.js`,
+  `splash.js`, `visualiser.js`, `voices.js`
 - `js/lib/flac-decoder.min.js`, `js/lib/ogg-opus-decoder.min.js`,
   `js/lib/ogg-vorbis-decoder.min.js` — only for loading FLAC/Ogg files the
   browser cannot decode by itself
+- `manifest.json` — the name, colours and standalone display a browser reads when
+  the page is added to a Home Screen; the page runs as well without it
 
 `ad.html` is not part of the app and none of the above needs it: it is a
 single self-contained promo page for Patch Bay — its own styles and one small
 script are inside the file — whose every link is written `./index.html`, so it
 works beside the app on any host and can be posted anywhere that serves files.
 Upload it or leave it out; the synth runs either way.
+
+`links.html` is a small page of copy buttons — the app's address, this
+repository's and the promo page's — for when a link has to be pasted somewhere
+and the message it arrived in will not copy it. Each button asks the browser for
+the clipboard, and a browser that refuses selects the link instead, so a
+long-press can take it. It is its own page with its own styles and script, opens
+on its own at `links.html`, and nothing in the app links to it or needs it; the
+promo page's "Just the link" block offers the address too.
 
 Opening `index.html` from the Files app (`file://`) does not work: ES modules and
 the AudioWorklet need a real https address. **Run** publishes to the preview link,
@@ -390,6 +402,19 @@ reserves that for an administrator — and a minute later the app is at
 Pages serves a site from a folder rather than from a host's root, which is why
 every path in the page is relative — nothing has to change. A private repository
 needs a paid plan for Pages; this one is public.
+
+**The whole screen, from a link.** Pages — or itch, or any other host — serves
+the page as a web page, so on a phone it arrives with the browser's own address
+bar and toolbar around it. That is the browser rather than the app, and no file
+in the repository can turn it off from a link. To have it take the screen, open
+the link once and add the page to the Home Screen — Safari: **Share → Add to Home
+Screen**; Chrome: **⋮ → Add to Home screen**; the same in most other phone
+browsers. The `apple-mobile-web-app-*` tags in `index.html` and the
+`manifest.json` beside it are what make it open from there as the app itself,
+with no bars, its own name, and `env(safe-area-inset-*)` already giving the notch
+and the home bar their room; from a link it is the same page as ever. The address
+bar is also where the page is opened in an app's own browser, which is why the
+microphone asks there the way it does (see **Mic** above).
 
 **itch.io**, which the splash card already names: Dashboard → Create new project,
 kind of project HTML, and upload one zip whose top level is `index.html`, `css/`

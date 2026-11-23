@@ -82,7 +82,9 @@
   // asked for at once. A browser will not start a page's sound before the page
   // has been touched, and leaves the context suspended until it is: the tune is
   // then played on the first tap or key, which is the same gesture that starts
-  // the app itself. Either way it is heard once.
+  // the app itself. Either way it is heard once — but only from a context made
+  // inside that gesture, so one that never started is thrown away and rebuilt
+  // (see startTune).
   const ARPEGGIO = [
     [0.0, 523.25, 0.55, 0.5],
     [0.1, 659.25, 0.55, 0.5],
@@ -98,8 +100,24 @@
   let tuneOut = null;
   let tuneStarted = false;
 
+  // The tune is heard on the phone's media playback session rather than the
+  // quiet ambient one a page's own Web Audio is given by default: the ambient
+  // session follows the silent switch, so on a phone with the ring switch off
+  // the tune was silent here while the rack itself — which asks for the session
+  // in js/main.js and js/output-route.js — still played. This file is a plain
+  // script, loaded before the modules, so it asks for the session itself.
+  function claimPlaybackSession() {
+    try {
+      const session = typeof navigator === 'undefined' ? null : navigator.audioSession;
+      if (session) session.type = 'playback';
+    } catch (e) {
+      /* no Audio Session API, or a browser that refuses the type */
+    }
+  }
+
   function tuneAudio() {
     if (tuneCtx) return tuneCtx;
+    claimPlaybackSession();
     const Ctx = window.AudioContext || window.webkitAudioContext;
     if (!Ctx) return null;
     let ctx = null;
@@ -186,20 +204,33 @@
   function startTune() {
     if (tuneStarted || !card.parentNode) return;
     if (card.classList.contains('splash-out')) return;
+    claimPlaybackSession();
     const ctx = tuneAudio();
     if (!ctx) return;
     if (ctx.state === 'running') {
       scheduleTune();
       return;
     }
-    if (!ctx.resume) return;
+    // No resume at all: this context can never be started, so the next gesture
+    // is left to build one that can.
+    if (!ctx.resume) {
+      closeTune();
+      return;
+    }
     // Made inside a tap this is allowed at once; asked for as the page loads it
-    // may only be answered when the page is first touched.
+    // may only be answered when the page is first touched — and on iOS a context
+    // made before that touch can stay suspended however often it is asked, which
+    // is heard as a card that never plays its tune. A context that does not
+    // start is closed, so the gesture that follows builds one of its own.
     try {
       const asked = ctx.resume();
-      if (asked && asked.then) asked.then(scheduleTune).catch(() => {});
+      if (asked && asked.then) {
+        asked.then(scheduleTune, closeTune);
+      } else if (ctx.state !== 'running') {
+        closeTune();
+      }
     } catch (e) {
-      /* the browser simply keeps it silent */
+      closeTune();
     }
   }
 
