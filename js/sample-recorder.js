@@ -7,17 +7,21 @@
 //
 // A voice take is a deliberate step of its own: the Mic button asks for the
 // microphone and keeps the permission granted, and Rec sample then records the
-// voice alone, so the keys play back just the voice. Rec sample never asks by
-// itself, so a browser that cannot hand a microphone over cannot take the page
-// down with the request. Mic asks in a browser the player opened, Safari above
-// all, where iOS puts the request to itself and answers it. It never asks in an
-// app's own browser on iOS: there the request is not answered at all — iOS ends
-// the app showing the page instead, and nothing a page does can prevent that —
-// so the tap points at the site's public link in Safari, and at a recording
-// loaded with the Sampler, for a voice.
+// voice alone, so the keys play back just the voice.
+//
+// The microphone is only ever asked for where a request is safe, and every
+// request goes through micBlockedReason first. On iOS an app's own browser is
+// never asked: a web view whose app has no microphone usage description of its
+// own cannot be handed one, and iOS ends the whole app when it is asked instead
+// of answering the page — and the page cannot tell the two apps apart before it
+// asks. So the Mic button there answers with the site's public link in Safari,
+// and Rec sample records the rack without waiting on a request that would take
+// the app down. A note across the page load remembers a request that never came
+// back, for a browser this page could not recognise in advance, and that one is
+// not asked again either.
 
-import { app } from './app.js';
-import { updateSampleName } from './patchbay.js';
+import { app, setAudioSession, addCable, removeCable } from './app.js?v=12';
+import { updateSampleName, updateParamControl, revealModule } from './patchbay.js?v=12';
 
 const BEEP_HZ = 880;
 const BEEP_LEN = 0.12;
@@ -30,6 +34,10 @@ const MIX_GAIN = 0.7;
 // it, so an unanswered prompt cannot hold up the recording. An answer that comes
 // later still joins the take: see the handler at the end of startTake.
 const MIC_WAIT_MS = 8000;
+// How long the Mic button waits on a request that never answers. A web view that
+// is not allowed a microphone can leave the request unsettled rather than reject
+// it, and the button must not sit on "Mic…" for ever when it does.
+const MIC_PROMPT_WAIT_MS = 30000;
 // The take is finished in two steps, with this in between: the capture stops,
 // the microphone track is closed, and only then are the nodes pulled apart. A
 // live microphone torn out of a running graph in one go is what iOS did not
@@ -47,6 +55,7 @@ let takes = 0;
 let createSampler = null;
 let micAllowed = false; // the microphone permission is granted: takes hold a voice
 let micBusy = false; // a microphone request is in flight
+let micRefused = false; // this browser has answered a request with no
 let micClosedBefore = false; // an earlier load took the app down for the mic
 
 function button() {
@@ -81,7 +90,9 @@ function beep(ctx, at) {
   g.gain.linearRampToValueAtTime(0.16, at + 0.008);
   g.gain.exponentialRampToValueAtTime(0.0001, at + BEEP_LEN);
   osc.connect(g);
-  g.connect(ctx.destination);
+  // Straight to the speakers, but through the page's own output route, so the
+  // count-in is heard wherever the rack is.
+  g.connect(app.output || ctx.destination);
   osc.start(at);
   osc.stop(at + BEEP_LEN + 0.02);
   osc.onended = () => {
@@ -101,14 +112,19 @@ function countIn(ctx) {
   beep(ctx, t0 + BEEP_GAP * 2);
 }
 
-// Release a microphone stream, if one was opened.
+// Release a microphone stream, if one was opened, and put the page back in the
+// full-volume playback session. Recording is its own session, and a synth left
+// playing in it is quiet and routed the way a phone call would be — so this runs
+// even when there was no stream to close.
 function stopStream(stream) {
-  if (!stream) return;
-  try {
-    stream.getTracks().forEach((t) => t.stop());
-  } catch (e) {
-    /* ignore */
+  if (stream) {
+    try {
+      stream.getTracks().forEach((t) => t.stop());
+    } catch (e) {
+      /* ignore */
+    }
   }
+  setAudioSession('playback');
 }
 
 // Let go of a microphone request the take no longer wants.
@@ -118,23 +134,99 @@ function releaseMicRequest(request) {
     .catch(() => {});
 }
 
-// The function this WebKit offers for opening the microphone. Only the standard
-// one, on navigator.mediaDevices: every browser the player can open has it, and
-// the old prefixed getters that a web view may expose instead lead into the same
-// capture code that closes the app on iOS.
+// The microphone must not hear the page's own speakers ------------------------
+//
+// A microphone on a phone sits inches from the speaker, and a voice take asks
+// for the browser's echo cancellation to stay off so the voice arrives as it
+// sounds. A synth left playing during a voice take is therefore recorded into it
+// as the room hears it, and then every key plays that take back, synth and all.
+// So the rack's own output is silenced for the length of a voice take: it is not
+// wanted in the recording, and it is the only thing the microphone could hear.
+// The level it was at is put back as soon as the take stops.
+let rackMuted = null;
+
+function muteRack() {
+  const e = app.engine;
+  if (!e || !e.master || rackMuted !== null) return;
+  try {
+    rackMuted = e.master.gain.value;
+    e.master.gain.setTargetAtTime(0, e.ctx.currentTime, 0.01);
+  } catch (err) {
+    rackMuted = null;
+  }
+}
+
+function unmuteRack() {
+  const e = app.engine;
+  const v = rackMuted;
+  rackMuted = null;
+  if (!e || !e.master || v === null) return;
+  try {
+    e.master.gain.setTargetAtTime(v, e.ctx.currentTime, 0.02);
+  } catch (err) {
+    try {
+      e.master.gain.value = v;
+    } catch (err2) {
+      /* ignore */
+    }
+  }
+}
+
+// The function this browser offers for opening the microphone. The standard one
+// on navigator.mediaDevices is used where it exists; a web view from an older
+// WebKit may only expose the prefixed call, which takes callbacks rather than a
+// promise and is wrapped into the same shape here, so a browser that can hand a
+// microphone over is never passed by for want of the newer name.
 function micGetter() {
   const md = navigator.mediaDevices;
   if (md && typeof md.getUserMedia === 'function') return (c) => md.getUserMedia(c);
+
+  const legacy = navigator.webkitGetUserMedia || navigator.getUserMedia;
+  if (typeof legacy === 'function') {
+    return (c) =>
+      new Promise((resolve, reject) => {
+        try {
+          legacy.call(
+            navigator,
+            c,
+            (stream) => resolve(stream),
+            (e) => reject(e || new Error('Microphone unavailable'))
+          );
+        } catch (e) {
+          reject(e);
+        }
+      });
+  }
+
+  // Some web views keep the prefixed MediaDevices object instead of the call.
+  const wmd = navigator.webkitMediaDevices;
+  if (wmd && typeof wmd.getUserMedia === 'function') return (c) => wmd.getUserMedia(c);
+
   return null;
 }
 
-// Whether Rec sample may ask for the microphone by itself, or the reason it may
-// not. Rec sample never asks by itself whatever the browser: the Mic button is the
-// one place a request comes from, with the player's tap behind it. This only says
-// whether this browser has anything to ask with at all.
-function micUnsupported() {
-  if (micGetter()) return null;
-  return 'unsupported';
+// Whether this browser may be asked for a microphone at all, and the reason it
+// may not. Nothing in this file calls a microphone getter without asking here
+// first, because the wrong request does not fail: it takes the page's app down.
+//
+//   'unsupported' — nothing here can open a microphone.
+//   'webview'     — an app's own browser on iOS. Its app either has a microphone
+//                   usage description, so asking shows the prompt, or has none,
+//                   so asking ends the app before the page hears any answer. The
+//                   page cannot tell those two apart beforehand, and the second
+//                   costs the player everything else they had open, so this
+//                   browser is never asked: the site's public link in Safari is.
+//   'closed'      — an earlier request never came back, so this browser closed
+//                   for it. Never asked again, whichever browser it turns out to
+//                   be.
+//
+// Where a request is safe the Mic button turns the voice on; where it is not, the
+// take records the rack alone and the button says where a voice can be taken.
+function micBlockedReason() {
+  if (!micGetter()) return 'unsupported';
+  if (micClosesApp()) return 'webview';
+  if (micClosedBefore) return 'closed';
+  return null;
 }
 
 // The browser's own processing colours a voice and pumps its level, so the take
@@ -151,22 +243,26 @@ const MIC_BUSY = ['NotReadableError', 'TrackStartError', 'AbortError'];
 
 // Open the microphone, asking the browser for it when it has not been allowed
 // yet. This goes out with the tap so the browser treats it as the player's
-// doing; the take waits for the answer.
-async function openMicrophone() {
-  // Nothing is asked from an app's own browser on iOS, however it was reached:
-  // iOS answers the request by ending the app that shows the page, and asking is
-  // exactly what closes it. The tap that leads here says so instead; this is the
-  // backstop that keeps any other path from sending the request as well.
-  if (micInAppBrowser()) return { stream: null, reason: 'webview' };
+// doing; the take waits for the answer. A take that needs different processing —
+// the lyric channel asks for echo cancellation — passes its own constraints;
+// anything else gets the plain, unprocessed microphone above.
+export async function openMicrophone(constraints) {
+  // A browser that must not be asked answers at once, with the reason, and never
+  // sees a request: see micBlockedReason.
+  const blocked = micBlockedReason();
+  if (blocked) return { stream: null, reason: blocked };
 
   const get = micGetter();
-  if (!get) return { stream: null, reason: 'unsupported' };
 
   // The note goes down before the request and comes away when it answers: one
   // still there on the next load is this request having closed the app.
   noteMicTry();
+  // Recording is its own audio session: asked for under the playback one, a
+  // request can be refused outright, and the synth's own sound ends up on the
+  // quiet route a phone call would use.
+  setAudioSession('play-and-record');
   try {
-    const attempts = [{ audio: MIC_CONSTRAINTS }, { audio: true }];
+    const attempts = [{ audio: constraints || MIC_CONSTRAINTS }, { audio: true }];
     let reason = 'unknown';
     for (let i = 0; i < attempts.length; i++) {
       try {
@@ -184,6 +280,9 @@ async function openMicrophone() {
         }
       }
     }
+    // Nothing was handed over, so nothing needs the record session any more:
+    // the synth must not be left playing under it.
+    setAudioSession('playback');
     return { stream: null, reason };
   } finally {
     clearMicTry();
@@ -202,7 +301,7 @@ function isIos() {
 // opened. Safari the player opened names its own version as well as its engine;
 // an app's web view reports the engine alone, or talks to its app through message
 // handlers, and a home screen app is not a tab either.
-function micInAppBrowser() {
+export function micInAppBrowser() {
   if (!isIos()) return false;
   const ua = navigator.userAgent || '';
   const handlers = window.webkit && window.webkit.messageHandlers;
@@ -214,11 +313,46 @@ function micInAppBrowser() {
   return !(/Version\/[\d.]+/.test(ua) && /Safari\/[\d.]+/.test(ua));
 }
 
+// Whether asking this browser for a microphone would not be answered but would
+// end the app showing the page. That is an app's own web view on iOS, and it is
+// the one case worth refusing outright rather than reporting afterwards: iOS
+// checks the app's microphone usage description before the page sees anything, so
+// an app without one is terminated, and the page learns nothing until it is loaded
+// again. A home screen app is not this — Safari is underneath it and prompts for
+// its microphone as Safari does — so it is left out of the test above.
+function micClosesApp() {
+  if (!isIos()) return false;
+  const ua = navigator.userAgent || '';
+  const handlers = window.webkit && window.webkit.messageHandlers;
+  if (handlers && Object.keys(handlers).length) return true;
+  if (/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua)) return false;
+  return !(/Version\/[\d.]+/.test(ua) && /Safari\/[\d.]+/.test(ua));
+}
+
+// An answer no further tap can change on its own: this browser has no microphone
+// to hand over, or will never show a prompt for one. Rec sample stops asking
+// after one of these, so a browser that refuses cannot make every take wait on a
+// request that will not come; the Mic button still asks whenever it is tapped.
+function micRefusedPermanently(reason) {
+  return (
+    reason === 'NotAllowedError' ||
+    reason === 'SecurityError' ||
+    reason === 'unsupported' ||
+    reason === 'webview' ||
+    reason === 'closed' ||
+    reason === 'timeout'
+  );
+}
+
 // A short way to say why the microphone did not open.
-function micProblem(reason) {
+export function micProblem(reason) {
   if (reason === 'NotAllowedError' || reason === 'SecurityError') {
+    // A refusal from an app's own browser is not the player's to change in
+    // Settings: that browser has to be given the microphone by the app showing
+    // it, or the site opened somewhere that has one.
+    if (micInAppBrowser()) return 'This browser will not hand over a microphone';
     return isIos()
-      ? 'Microphone blocked — allow it in Settings › Safari › Microphone'
+      ? 'Microphone blocked — allow it for this site in Settings › Safari › Microphone, or open the link in Safari'
       : 'Microphone blocked — allow it for this page';
   }
   if (reason === 'NotFoundError' || reason === 'DevicesNotFoundError') return 'No microphone found';
@@ -233,69 +367,99 @@ function micProblem(reason) {
   return 'Microphone unavailable';
 }
 
-// The site's own public link, when the page is being shown at its preview one:
-// the same site at the address it can be opened in Safari.
-function micPublicHost() {
+// The address the site can be opened at elsewhere, and whether it has to be
+// published first. A page shown at its preview link is not the public site, so
+// its public host goes with "tap Go Live"; a page already at the public link, or
+// at any other host, only has to be opened there.
+function micOpenElsewhere() {
   const host = location.hostname || '';
+  if (!host) return null;
   const m = /^(.*)--preview\./.exec(host);
-  return m && /(^|\.)freemilk\.app$/.test(host) ? m[1] + '.freemilk.app' : null;
+  if (m && /(^|\.)freemilk\.app$/.test(host)) {
+    return { host: m[1] + '.freemilk.app', needsGoLive: true };
+  }
+  return { host, needsGoLive: false };
 }
 
 // Where a voice gets recorded when this browser will not be handed a microphone:
-// the site's public link in Safari, where iOS does put the request, or a take
-// made in another app and loaded with the Sampler. Said instead of asking, since
-// asking is what closes the app.
-function micInAppMessage() {
-  const publicHost = micPublicHost();
+// the site opened in a browser that will, or a take made in another app and
+// loaded with the Sampler. Said in place of an answer, since there is no other
+// one here. `definite` says this browser is known never to ask — an app's own
+// browser on iOS, or one that closed for a request — rather than one that only
+// refused once and might be asked again.
+function micInAppMessage(definite = false) {
+  const elsewhere = micOpenElsewhere();
+  let where = 'open the site in Safari';
+  if (elsewhere) {
+    where = elsewhere.needsGoLive
+      ? 'tap Go Live, then open ' + elsewhere.host + ' in Safari'
+      : 'open ' + elsewhere.host + ' in Safari';
+  }
   return (
-    'Microphone needs Safari — ' +
-    (publicHost
-      ? 'tap Go Live, then open ' + publicHost + ' in Safari'
-      : 'publish with Go Live and open the site in Safari') +
+    (definite
+      ? 'This browser cannot record a voice — record in Safari: '
+      : 'If this browser will not hand over the microphone, record in Safari — ') +
+    where +
     ", or load a recording with the Sampler's Load sample"
   );
 }
 
 // The way a voice is recorded from a browser that will not be handed a
-// microphone: the site's own public link in Safari, where iOS does put the
-// request. The tap that asks puts that link on the clipboard where the web view
-// allows it, so getting there is a paste rather than typing an address; a web
-// view that will not take the clipboard is given the address to read instead.
-function offerMicInSafari() {
-  const publicHost = micPublicHost();
-  const link = publicHost ? 'https://' + publicHost + '/' : null;
+// microphone: the site opened in Safari, which does put the request to iOS. The
+// tap that asks puts that address on the clipboard where the web view allows it,
+// so getting there is a paste rather than typing it; a web view that will not
+// take the clipboard is given the address to read instead.
+export function offerMicInSafari(definite = false) {
+  const elsewhere = micOpenElsewhere();
+  const link = elsewhere ? 'https://' + elsewhere.host + '/' : null;
   if (!link || !navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
-    app.toast(micInAppMessage(), 8000);
+    app.toast(micInAppMessage(definite), 9000);
     return;
   }
+  const how = elsewhere.needsGoLive
+    ? 'tap Go Live, then paste it into Safari and tap Mic there'
+    : 'paste it into Safari and tap Mic there';
   navigator.clipboard
     .writeText(link)
     .then(() => {
-      app.toast('Link copied — tap Go Live, then paste it into Safari and tap Mic there', 9000);
+      app.toast(
+        (definite ? 'This browser cannot record a voice. Link copied — ' : 'Link copied — ') + how,
+        9000
+      );
     })
     .catch(() => {
-      app.toast(micInAppMessage(), 8000);
+      app.toast(micInAppMessage(definite), 9000);
     });
 }
 
 // What to say when the take has no voice in it.
 function micAdvice(reason) {
-  if (reason === 'webview') return 'Mic off here — open the site in Safari for a voice';
-  // The ordinary case: Rec sample never asks, so a take holds the keys alone
-  // until the Mic button is turned on.
+  // A take in a browser that is never asked, or one that closed for a request:
+  // the rack is what it records, and the Mic button is where the way to record a
+  // voice in Safari is.
+  if (reason === 'webview' || reason === 'closed') {
+    return 'Mic off here — tap Mic to copy the link for Safari';
+  }
+  if (reason === 'refused') {
+    return 'The microphone is not available here — tap Mic to try again';
+  }
+  // The ordinary case, and the one that reads as a bug otherwise: the keys are
+  // being recorded rather than the voice because Mic was never turned on.
   if (reason === 'off') return 'Mic is off';
   return micProblem(reason);
 }
 
 // A note across a page load -----------------------------------------------
 //
-// In an app's own browser the request for the microphone does not come back with
-// an error: iOS ends the app showing the page, because that app has no microphone
-// usage description of its own and nothing a page does can give it one. That
-// cannot be known beforehand, so a note is left before the request and taken away
-// as soon as the request answers. A note still there on the next load is a
-// request that never answered: this browser closes for the microphone, and from
-// then on the Mic button names the way a voice can be recorded instead of trying.
+// An app's own browser may answer a request for the microphone by ending the app
+// that shows the page, because that app has no microphone usage description of
+// its own and nothing a page does can give it one. A browser this page can
+// recognise as an app's own is never asked at all (see micBlockedReason), but one
+// it cannot — a web view that presents Safari's own user agent, say — takes the
+// page down with the first request. So a note is left before every request and
+// taken away as soon as it answers: one still there on the next load is a request
+// that never answered, and that browser is not asked again either, for the day it
+// is left alone for below, so no tap can repeat it.
 const MIC_TRY_KEY = 'patchbay.micTry';
 const MIC_CLOSED_KEY = 'patchbay.micClosed';
 const MIC_NOTE_MAX_MS = 10 * 60 * 1000;
@@ -389,6 +553,21 @@ function setMicButton(label, { on = false, disabled = false } = {}) {
   btn.classList.toggle('on', on);
 }
 
+// A take outside this file — the lyric channel's own — has answered a microphone
+// request too, so the Mic button is told what happened, and this browser is
+// remembered the same way a take of this file's would.
+export function micGrantedByTake() {
+  micAllowed = true;
+  micRefused = false;
+  micClosedBefore = false;
+  clearMicClosed();
+  setMicButton('Mic on', { on: true });
+}
+
+export function micRefusedByTake(reason) {
+  if (micRefusedPermanently(reason)) micRefused = true;
+}
+
 // Turn the microphone on and keep it on, so Rec sample then records the voice.
 // The request was started by the Mic button itself, in the same tap; this only
 // waits for the answer and reports it. Works in Safari and, where the browser
@@ -413,7 +592,14 @@ async function turnMicOn(request) {
 
   let result;
   try {
-    result = await request;
+    // A browser can leave the request unanswered — a web view that will not hand
+    // a microphone over often does — so the button does not wait on it forever.
+    result = await Promise.race([
+      request,
+      new Promise((resolve) =>
+        setTimeout(() => resolve({ stream: null, reason: 'timeout' }), MIC_PROMPT_WAIT_MS)
+      )
+    ]);
   } catch (e) {
     console.warn('Could not open the microphone', e);
     result = { stream: null, reason: 'unavailable' };
@@ -423,15 +609,18 @@ async function turnMicOn(request) {
   const stream = result && result.stream;
   if (!stream) {
     setMicButton('Mic off');
-    // A web view that will not hand over a microphone is answered in its own way
-    // by iOS, and the answer is no; the site's own link in Safari is where a voice
-    // is reliably recorded, and a Voice Memo can be loaded into the Sampler.
-    app.toast(
-      micInAppBrowser()
-        ? micInAppMessage()
-        : micProblem(result && result.reason) + ' — tap Mic to try again',
-      micInAppBrowser() ? 8000 : undefined
-    );
+    if (micRefusedPermanently(result && result.reason)) micRefused = true;
+    // An answer that came too late still holds a device: let it go rather than
+    // leave the microphone open behind a button that says it is off.
+    if (result && result.reason === 'timeout') releaseMicRequest(request);
+    // A web view that will not hand a microphone over has nothing else to offer
+    // here: the site's own public link in Safari is where a voice can be
+    // recorded, and a Voice Memo can be loaded into the Sampler instead.
+    if (micInAppBrowser() || (result && result.reason === 'webview')) {
+      offerMicInSafari();
+      return;
+    }
+    app.toast(micProblem(result && result.reason) + ' — tap Mic to try again', 12000);
     return;
   }
   if (!(await waitForLiveMic(stream, 1500))) {
@@ -446,6 +635,7 @@ async function turnMicOn(request) {
   // voice in it.
   stopStream(stream);
   micAllowed = true;
+  micRefused = false;
   micClosedBefore = false;
   clearMicClosed();
   setMicButton('Mic on', { on: true });
@@ -461,27 +651,28 @@ function turnMicOff() {
 function onMicClick() {
   if (micBusy) return;
 
-  // In an app's own browser on iOS there is nothing to ask: the request never
-  // comes back, the app showing the page is ended instead, and that is the whole
-  // of what the tap did. So no request goes out — the tap puts the site's public
-  // link on the clipboard and says where a voice is recorded, and the patch is
-  // still there afterwards.
-  if (micInAppBrowser()) {
-    offerMicInSafari();
-    return;
-  }
-
   if (micAllowed) {
     turnMicOff();
     return;
   }
-  // A browser that closed for an earlier request still gets another go: the rack is
-  // kept on the device, so a close costs the page but not the patch, and only the
-  // player can say whether this browser has been given a microphone since. The note
-  // from that close is read once on load and shown as a hint, not repeated here.
-  // The request goes out with the tap itself, in a browser the player opened;
-  // that browser puts it to iOS, which answers it. iOS refuses a request made after
-  // an await, because the gesture it checks has already passed, so the call is sent
+
+  // Where no request can be made, saying so is the whole answer: no tap asks a
+  // browser that would either take the app down or hand nothing over. A browser
+  // that closed for an earlier request is included, so a second tap cannot do
+  // what the first one did.
+  const blocked = micBlockedReason();
+  if (blocked) {
+    setMicButton('Mic off');
+    if (blocked === 'unsupported') {
+      app.toast(micProblem('unsupported'), 8000);
+    } else {
+      offerMicInSafari(true);
+    }
+    return;
+  }
+
+  // The request goes out with the tap itself: iOS refuses one made after an
+  // await, because the gesture it checks has already passed, so the call is sent
   // from here rather than from anything waiting on it.
   const request = openMicrophone();
   turnMicOn(request).catch((e) => {
@@ -565,6 +756,9 @@ function attachMic(s, stream) {
     // The take has become a voice take: the rack leaves it, and what it caught
     // while it was keys-only is dropped, so the sample holds the voice alone.
     dropSynthFromTake(s);
+    // Nothing of the rack may reach the speaker now, or the microphone would
+    // record it along with the voice.
+    muteRack();
     s.chunks = [];
     s.peak = 0;
     s.startedAt = performance.now();
@@ -580,7 +774,7 @@ function attachMic(s, stream) {
 // Load the capture worklet once per page.
 function loadWorklet(ctx) {
   if (!workletModule) {
-    const url = new URL('./sample-recorder-worklet.js', import.meta.url).href;
+    const url = new URL('./sample-recorder-worklet.js?v=12', import.meta.url).href;
     workletModule = ctx.audioWorklet.addModule(url).catch((e) => {
       workletModule = null;
       throw e;
@@ -650,7 +844,8 @@ function startClock(s) {
       return;
     }
     const level = Math.round(Math.min(1, s.peak) * 100);
-    app.toast('● ' + secs.toFixed(1) + 's · ' + level + '% — tap ■ Stop');
+    const what = s.voice ? 'voice' : 'keys only';
+    app.toast('● ' + secs.toFixed(1) + 's · ' + level + '% · ' + what + ' — tap ■ Stop');
   }, 250);
 }
 
@@ -658,6 +853,7 @@ function startClock(s) {
 // master stays patched to the speakers.
 function teardown(s) {
   if (!s) return;
+  unmuteRack();
   if (s.kind === 'worklet' && s.node) {
     try {
       s.node.port.postMessage({ record: false });
@@ -741,6 +937,9 @@ async function startTake(micRequest) {
   const micResult = await Promise.race([micRequest, timeout]);
 
   let stream = micResult.stream;
+  // Remember a browser that has answered no, so the next take does not wait on
+  // the same answer again; the Mic button still asks whenever it is tapped.
+  if (!stream && micRefusedPermanently(micResult.reason)) micRefused = true;
   // A permission that was granted and is refused now — revoked in Settings — must
   // not leave the Mic button reading as if it still worked.
   if (
@@ -789,6 +988,16 @@ async function startTake(micRequest) {
     }
   }
 
+  if (micSource) {
+    // A take that was handed a microphone is also the Mic button's answer: keep
+    // the permission for the next take and show it as on.
+    micAllowed = true;
+    micRefused = false;
+    micClosedBefore = false;
+    clearMicClosed();
+    setMicButton('Mic on', { on: true });
+  }
+
   const synth = app.engine && app.engine.master ? app.engine.master : null;
   if (!micSource && !synth) {
     stopStream(stream);
@@ -803,6 +1012,8 @@ async function startTake(micRequest) {
     stream,
     micSource,
     voice: !!micSource,
+    micProblem: problem,
+    micReason: micResult.reason || null,
     micGain: null,
     synth,
     synthGain: null,
@@ -874,6 +1085,8 @@ async function startTake(micRequest) {
 
   session = s;
   phase = 'recording';
+  // A voice take silences the rack while it records: see muteRack.
+  if (micSource) muteRack();
   s.capturing = true;
   s.startedAt = performance.now();
   if (s.kind === 'worklet') {
@@ -932,6 +1145,9 @@ async function startTake(micRequest) {
 function stopTake() {
   if (finishing) return;
   const s = session;
+  // A muted rack goes back to the speakers as soon as the take stops, whether or
+  // not there was a take still running.
+  unmuteRack();
   if (!s) {
     clearTimers();
     phase = 'idle';
@@ -995,7 +1211,7 @@ function stopTake() {
         );
         return;
       }
-      applyToSampler(buffer);
+      applyToSampler(buffer, s.voice, s.micProblem);
     } catch (e) {
       console.error('Could not finish the take', e);
       app.toast('Could not save the take — try again');
@@ -1059,7 +1275,48 @@ function buildBuffer(ctx, chunks) {
   return buffer;
 }
 
-function applyToSampler(buffer) {
+// Middle C: the middle of the keybed, and the note a take plays at the pitch it
+// was recorded at. Every other key is transposed from it.
+const SAMPLER_ROOT = 60;
+
+// A take is what the keys should play, so the Sampler becomes the only thing
+// that reaches the Output — whether the take holds the voice or the rack. Its
+// own controls are put back to a clean one-shot on middle C, its output goes
+// straight to the Output, every other cable into the Output is unplugged and so
+// is every other cable out of the sampler, so the synth's own sound and its
+// effects are not heard under the recording. The modules themselves stay on the
+// rack, so Auto-patch or a preset puts the synth back in one tap.
+function focusSampler(mod) {
+  mod.params.root = SAMPLER_ROOT;
+  mod.params.loop = false;
+  updateParamControl(mod.id, 'root');
+  updateParamControl(mod.id, 'loop');
+  soloSampler(mod);
+}
+
+function soloSampler(mod) {
+  // Every Output the rack has: a cable into any one of them would reach the
+  // speakers.
+  const outputs = app.state.modules.filter((m) => m.type === 'output');
+  if (!outputs.length) return;
+
+  for (const cable of app.state.cables.slice()) {
+    const intoOutput =
+      cable.to.port === 'in' && outputs.some((o) => o.id === cable.to.id);
+    // Everything else comes off the Output...
+    if (intoOutput && cable.from.id !== mod.id) {
+      removeCable(cable.id);
+      continue;
+    }
+    // ...and the sampler feeds nothing but the Output.
+    if (!intoOutput && cable.from.id === mod.id) removeCable(cable.id);
+  }
+
+  addCable(mod.id, 'out', outputs[0].id, 'in');
+  if (app.onCablesChanged) app.onCablesChanged();
+}
+
+function applyToSampler(buffer, voice, problem) {
   let mod = app.state.modules.find((m) => m.type === 'sampler') || null;
   if (!mod && createSampler) mod = createSampler();
   if (!mod) {
@@ -1071,8 +1328,30 @@ function applyToSampler(buffer) {
   mod.data = mod.data || {};
   mod.data.buffer = buffer;
   mod.data.name = 'Take ' + takes;
+  // Every take takes over the keys: the recording is what plays, never the
+  // recording plus the synth that made it.
+  focusSampler(mod);
   updateSampleName(mod.id);
-  app.toast('Sample ready — play the keys to hear it');
+  // Show the card the take landed on, so it is plain that the keys are playing
+  // this take and not the patch.
+  revealModule(mod.id);
+  // Say what the take holds, and when there was meant to be a voice but the
+  // browser would not give one, say that too rather than leaving the player to
+  // wonder why their voice was not in it. A take without a voice is the rack's
+  // own sound recorded, which on the keys sounds exactly like the synth — that
+  // is the take playing, not the patch.
+  let msg = voice
+    ? 'Sample ready — the voice alone plays on the keys'
+    : "Sample ready — only this take plays on the keys, and it is the rack's own sound";
+  if (!voice) {
+    msg += problem
+      ? '. ' + problem
+      : micGetter()
+        ? '. Tap Mic to record your voice instead'
+        : '';
+  }
+  msg += ' — Auto-patch brings the synth back';
+  app.toast(msg, 10000);
 }
 
 export function initSampleRecorder(opts = {}) {
@@ -1082,15 +1361,14 @@ export function initSampleRecorder(opts = {}) {
   if (mic) mic.addEventListener('click', onMicClick);
 
   // A load that follows a microphone request with no answer means the last one
-  // closed the app. The page then knows better and the button says so.
+  // closed the app. The page then knows better: this browser is not asked again,
+  // and the player is told where a voice can be taken instead.
   const closed = readMicTry();
   micClosedBefore = closed || readMicClosed();
   if (micClosedBefore) {
-    // Late enough to follow the first-run hint rather than replace it. The Mic
-    // button no longer sends a request from a browser like this, so this is the
-    // way a voice is recorded, said once after a load that was closed for one.
+    // Late enough to follow the first-run hint rather than replace it.
     setTimeout(() => {
-      app.toast(micInAppMessage(), 8000);
+      app.toast(micInAppMessage(true), 9000);
     }, 4600);
   }
 
@@ -1107,17 +1385,11 @@ export function initSampleRecorder(opts = {}) {
     }
     if (phase !== 'idle') return;
 
-    // Rec sample never asks for the microphone: only the Mic button does, and
-    // only where an answer is possible. A request this browser answers by closing
-    // the app would take the take down with it, and a take of the rack alone is
-    // worth far more than that.
-    let micRequest;
-    if (micAllowed) {
-      micRequest = openMicrophone();
-    } else {
-      const blocked = micUnsupported();
-      micRequest = Promise.resolve({ stream: null, reason: blocked || 'off' });
-    }
+    // The take asks for the microphone itself, with this tap behind it, so the
+    // first Rec sample of a visit can be a voice take without turning Mic on
+    // first. Where a request is not safe it answers at once and the take records
+    // the rack alone, which is what keeps this button from closing the app.
+    const micRequest = micRequestForTake();
 
     startTake(micRequest).catch((e) => {
       console.error(e);
@@ -1130,4 +1402,15 @@ export function initSampleRecorder(opts = {}) {
       }
     });
   });
+}
+
+// The microphone a take asks for, answered at once where this browser must not be
+// asked: an app's own browser on iOS, and one that closed for an earlier request.
+function micRequestForTake() {
+  const blocked = micBlockedReason();
+  if (blocked) return Promise.resolve({ stream: null, reason: blocked });
+  // A browser that answered no is remembered, so later takes record the rack
+  // without waiting on the same answer again; the Mic button still says why.
+  if (!micAllowed && micRefused) return Promise.resolve({ stream: null, reason: 'refused' });
+  return openMicrophone();
 }

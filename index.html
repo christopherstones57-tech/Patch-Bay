@@ -5,15 +5,46 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="theme-color" content="#0b0d12">
 <title>Patch Bay</title>
-<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/app.css?v=14">
 </head>
 <body>
+<!-- The card that stands in front of the app while the rack is built: the
+     maker's name in coloured, extruded letters over a starburst, with a little
+     tune. js/splash.js colours the letters, plays the tune and takes the card
+     away — and its first tap is also the gesture the browser needs before the
+     page may make a sound at all. -->
+<div id="splash" role="dialog" aria-label="Patch Bay, made by Stonky73 at itch dot io">
+  <div class="splash-rays" aria-hidden="true"></div>
+  <div class="splash-rays thin" aria-hidden="true"></div>
+  <div class="splash-glow" aria-hidden="true"></div>
+  <div class="splash-card" aria-hidden="true">
+    <p class="splash-line splash-made">Made By</p>
+    <p class="splash-line splash-name">Stonky73</p>
+    <p class="splash-line splash-site">@itch.io</p>
+    <p class="splash-tap">Tap to begin</p>
+  </div>
+</div>
 <div id="app">
   <header id="topbar">
+    <div class="bar-row title-row">
+      <span class="tune-label">Tune</span>
+      <button id="btn-tune-name" class="unnamed" type="button" title="Tap to name this tune — its files are saved under it">Untitled tune</button>
+      <input id="tune-name-input" type="text" maxlength="80" placeholder="Name this tune" aria-label="Name this tune" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done" hidden>
+      <button id="btn-tune-save" class="primary" type="button" hidden>Save</button>
+      <button id="btn-tune-cancel" type="button" hidden>Cancel</button>
+      <!-- How many different people have opened Patch Bay, and how many times it
+           has been opened in all. js/counter.js fills it in from the counter
+           service; it stays out of the way until it has a number to show. -->
+      <div id="viewer-count" class="viewer-count" title="Everyone who has opened Patch Bay, and every visit" hidden>
+        <span class="viewer-stat" id="viewer-users-stat" hidden><b id="viewer-users">0</b><i id="viewer-users-label">users</i></span>
+        <span class="viewer-stat" id="viewer-views-stat" hidden><b id="viewer-views">0</b><i id="viewer-views-label">views</i></span>
+      </div>
+    </div>
     <div class="bar-row">
       <button id="btn-start" class="primary" type="button">Start audio</button>
       <label class="mini">Vol
-        <input id="master" type="range" min="0" max="1" step="0.01" value="0.8">
+        <input id="master" type="range" min="0" max="1" step="0.01" value="1">
+        <span class="meter" id="master-meter" aria-hidden="true"><i></i></span>
       </label>
       <label class="mini">BPM
         <input id="bpm" type="number" min="40" max="240" step="1" value="120">
@@ -21,6 +52,10 @@
       <button id="btn-add-module" class="primary" type="button">+ Add module</button>
       <button id="btn-autopatch" type="button">Auto-patch</button>
       <button id="btn-patch-view" type="button">Patch view</button>
+      <button id="btn-visualiser" type="button">Visualiser</button>
+      <button id="btn-demo" type="button">Demo tunes</button>
+      <button id="btn-presets" type="button">Presets</button>
+      <button id="btn-import" type="button" title="Import a song made with Patch Bay">Import song</button>
       <button id="btn-clear-rack" type="button">Clear rack</button>
       <button id="btn-reset" type="button">Default rack</button>
     </div>
@@ -39,18 +74,63 @@
       <button class="chan" type="button" data-channel="1" aria-label="Record to channel 2">2</button>
       <button class="chan" type="button" data-channel="2" aria-label="Record to channel 3">3</button>
       <button class="chan" type="button" data-channel="3" aria-label="Record to channel 4">4</button>
+      <button class="chan lyric" type="button" data-channel="4" aria-label="Record your lyrics to channel 5" title="Channel 5 records your lyrics">5</button>
       <button id="btn-mix" type="button">Mix</button>
     </div>
     <div class="bar-row">
       <button id="btn-rec" type="button">&#9679; Rec</button>
       <button id="btn-play" type="button">&#9654; Play</button>
       <button id="btn-loop" type="button">Loop</button>
+      <button id="btn-click" type="button" title="A bar of count-in and a click under every take">Click</button>
+      <button id="btn-quantize" type="button" title="Snap a take to the sixteenth note">Quantize</button>
       <button id="btn-mic" type="button">Mic</button>
       <button id="btn-rec-sample" type="button">Rec sample</button>
       <span id="song-info">0 notes</span>
       <button id="btn-wav" type="button">WAV</button>
       <button id="btn-ogg" type="button">OGG</button>
       <button id="btn-clear-song" type="button">Clear song</button>
+    </div>
+    <!-- One knob per channel. Each turns through 270° from silence, past 0 dB at
+         the top of its travel, up to +6 dB; drag it up or down, and double-tap
+         for 0 dB. The dial is drawn in CSS from --knob-sweep and --knob-angle,
+         which js/keyboard.js sets from the channel's level. -->
+    <div class="bar-row chan-vol-row" id="channel-vols" aria-label="Channel volumes">
+      <span class="chan-label">Vol</span>
+      <div class="chan-vol" data-channel="0">
+        <span class="chan-vol-name" aria-hidden="true">1</span>
+        <button class="knob" type="button" data-channel="0" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Channel 1 volume" aria-valuemin="-60" aria-valuemax="6" aria-valuenow="0" aria-valuetext="0.0 dB" title="Channel 1 volume — drag up or down; double-tap for 0 dB">
+          <span class="knob-dial"><i class="knob-cap"></i></span>
+          <span class="knob-val">0.0</span>
+        </button>
+      </div>
+      <div class="chan-vol" data-channel="1">
+        <span class="chan-vol-name" aria-hidden="true">2</span>
+        <button class="knob" type="button" data-channel="1" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Channel 2 volume" aria-valuemin="-60" aria-valuemax="6" aria-valuenow="0" aria-valuetext="0.0 dB" title="Channel 2 volume — drag up or down; double-tap for 0 dB">
+          <span class="knob-dial"><i class="knob-cap"></i></span>
+          <span class="knob-val">0.0</span>
+        </button>
+      </div>
+      <div class="chan-vol" data-channel="2">
+        <span class="chan-vol-name" aria-hidden="true">3</span>
+        <button class="knob" type="button" data-channel="2" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Channel 3 volume" aria-valuemin="-60" aria-valuemax="6" aria-valuenow="0" aria-valuetext="0.0 dB" title="Channel 3 volume — drag up or down; double-tap for 0 dB">
+          <span class="knob-dial"><i class="knob-cap"></i></span>
+          <span class="knob-val">0.0</span>
+        </button>
+      </div>
+      <div class="chan-vol" data-channel="3">
+        <span class="chan-vol-name" aria-hidden="true">4</span>
+        <button class="knob" type="button" data-channel="3" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Channel 4 volume" aria-valuemin="-60" aria-valuemax="6" aria-valuenow="0" aria-valuetext="0.0 dB" title="Channel 4 volume — drag up or down; double-tap for 0 dB">
+          <span class="knob-dial"><i class="knob-cap"></i></span>
+          <span class="knob-val">0.0</span>
+        </button>
+      </div>
+      <div class="chan-vol lyric" data-channel="4">
+        <span class="chan-vol-name" aria-hidden="true">5</span>
+        <button class="knob" type="button" data-channel="4" role="slider" tabindex="0" aria-orientation="vertical" aria-label="Channel 5 volume (lyrics)" aria-valuemin="-60" aria-valuemax="6" aria-valuenow="0" aria-valuetext="0.0 dB" title="Channel 5 volume, the lyrics — drag up or down; double-tap for 0 dB">
+          <span class="knob-dial"><i class="knob-cap"></i></span>
+          <span class="knob-val">0.0</span>
+        </button>
+      </div>
     </div>
     <div id="keyboard-wrap">
       <button id="oct-down" type="button" aria-label="Octave down">&minus;</button>
@@ -66,10 +146,13 @@
       <h2 id="module-sheet-title">Add a module</h2>
       <button id="sheet-close" type="button">Close</button>
     </div>
-    <div class="sheet-search">
-      <input id="module-search" type="search" placeholder="Search modules — osc, gen, fx, seq…" aria-label="Search modules" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search">
-      <button id="module-search-clear" class="sheet-search-clear" type="button" hidden>Clear</button>
-    </div>
+    <form id="module-search-form" class="sheet-search" role="search">
+      <div class="sheet-search-row">
+        <input id="module-search" type="search" placeholder="Search modules — osc, gen, fx, seq…" aria-label="Search modules" autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" enterkeyhint="search">
+        <button id="module-search-clear" class="sheet-search-clear" type="button" hidden>Clear</button>
+      </div>
+      <button id="module-search-go" class="primary sheet-search-go" type="submit" aria-label="Enter the search term">Search</button>
+    </form>
     <p class="sheet-hint" id="module-hint">Tap a module to add it to the rack. It patches itself in automatically.</p>
     <div class="sheet-list" id="module-list"></div>
   </div>
@@ -82,10 +165,16 @@
       <button id="mix-sheet-close" type="button">Close</button>
     </div>
     <p class="sheet-hint" id="mix-summary">Nothing recorded yet.</p>
+    <div class="sheet-search">
+      <div class="sheet-search-row">
+        <input id="mix-name" type="text" placeholder="Name the mix — patch-bay-mix" aria-label="Name the exported files" maxlength="80" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done">
+      </div>
+    </div>
+    <p class="sheet-hint">Every file is saved under that name — .wav, .flac, .ogg and .json.</p>
     <div class="sheet-list">
       <button id="mix-wav" class="module-option mix-option" type="button">
         <span class="module-option-name">WAV</span>
-        <span class="module-option-desc">Renders all four channels offline, faster than real time. Lossless and plays anywhere.</span>
+        <span class="module-option-desc">Renders all five channels offline, faster than real time — the lyrics mixed in with the notes. Lossless and plays anywhere.</span>
       </button>
       <button id="mix-flac" class="module-option mix-option" type="button">
         <span class="module-option-name">FLAC</span>
@@ -95,22 +184,95 @@
         <span class="module-option-name">OGG</span>
         <span class="module-option-desc">Recorded live as the mix plays, so it is small. Needs a browser that records Ogg.</span>
       </button>
+      <button id="mix-song" class="module-option mix-option" type="button">
+        <span class="module-option-name">Song file</span>
+        <span class="module-option-desc">Saves every channel as one file — the notes, the rack each channel was recorded with, and the lyrics — to import again with Import.</span>
+      </button>
     </div>
+  </div>
+</div>
+<input id="song-file-input" type="file" accept=".json,application/json" hidden>
+<div id="demo-sheet" class="sheet" aria-hidden="true">
+  <div class="sheet-backdrop"></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="demo-sheet-title">
+    <div class="sheet-head">
+      <h2 id="demo-sheet-title">Demo tunes</h2>
+      <button id="demo-sheet-close" type="button">Close</button>
+    </div>
+    <p class="sheet-hint" id="demo-hint">Five pieces of their own, each on a different rack.</p>
+    <div class="sheet-list" id="demo-list"></div>
+  </div>
+</div>
+<div id="preset-sheet" class="sheet" aria-hidden="true">
+  <div class="sheet-backdrop"></div>
+  <div class="sheet-panel" role="dialog" aria-modal="true" aria-labelledby="preset-sheet-title">
+    <div class="sheet-head">
+      <h2 id="preset-sheet-title">Presets</h2>
+      <button id="preset-sheet-close" type="button">Close</button>
+    </div>
+    <form id="preset-save-form" class="sheet-search" role="form">
+      <div class="sheet-search-row">
+        <input id="preset-name" type="text" placeholder="Name this patch — Acid bass, Ambient pad…" aria-label="Preset name" maxlength="60" autocomplete="off" autocorrect="off" autocapitalize="sentences" spellcheck="false" enterkeyhint="done">
+      </div>
+      <button id="preset-save" class="primary sheet-search-go" type="submit">Save preset</button>
+    </form>
+    <p class="sheet-hint" id="preset-hint">No presets yet — name this patch above and tap Save preset.</p>
+    <div class="sheet-list preset-list" id="preset-list"></div>
   </div>
 </div>
 <div id="patch-view" role="dialog" aria-modal="true" aria-labelledby="patch-view-title" aria-hidden="true">
   <div class="patch-view-head">
     <h2 id="patch-view-title">Patch view</h2>
     <span id="patch-view-info"></span>
+    <div class="patch-view-zoom">
+      <button id="patch-view-zoom-out" type="button" aria-label="Zoom out">&minus;</button>
+      <button id="patch-view-fit" type="button" aria-label="Fit the whole patch on screen">Fit</button>
+      <button id="patch-view-zoom-in" type="button" aria-label="Zoom in">+</button>
+    </div>
     <button id="patch-view-close" type="button">Close</button>
   </div>
   <div class="patch-view-body">
     <svg id="patch-map" aria-label="Map of every module and cable in the rack"></svg>
     <p class="patch-view-empty" id="patch-view-empty" hidden>The rack is empty — add modules with + Add module.</p>
   </div>
-  <p class="patch-view-hint">Tap a module to jump to its card in the rack.</p>
+  <p class="patch-view-hint">Drag to move around · pinch or −/+ to zoom · tap a module to jump to its card in the rack.</p>
 </div>
+<div id="visualiser" role="dialog" aria-modal="true" aria-label="Audio visualiser" aria-hidden="true">
+  <canvas id="visualiser-canvas"></canvas>
+  <div class="visualiser-hud">
+    <div class="visualiser-text">
+      <strong>Patch Bay</strong>
+      <span id="visualiser-info">Live audio</span>
+    </div>
+    <div class="visualiser-buttons">
+      <button id="visualiser-demo" type="button">Demo tune</button>
+      <button id="visualiser-close" type="button">Close</button>
+    </div>
+  </div>
+  <div class="visualiser-keyrow">
+    <button id="visualiser-oct-down" type="button" aria-label="Octave down">&minus;</button>
+    <button id="visualiser-oct-up" type="button" aria-label="Octave up">+</button>
+    <div id="visualiser-keys" class="keys" aria-label="Play the patch from the visualiser"></div>
+  </div>
+</div>
+<!-- A silent looping file that keeps the page on the phone's media playback
+     session, so Web Audio comes out of the speaker at the phone's own volume.
+     main.js starts it in the player's first tap; it never makes a sound. -->
+<audio id="audio-session" loop playsinline preload="auto" aria-hidden="true"></audio>
 <div id="toast"></div>
-<script type="module" src="js/main.js"></script>
+<!-- If the module graph never loads — a half-cached build, say — the page stands
+     there looking alive with an empty keybed and buttons that answer nothing.
+     Say what the browser reported rather than going quiet. -->
+<script>
+  window.addEventListener('error', function (e) {
+    var toast = document.getElementById('toast');
+    if (!toast || !e || !e.message) return;
+    toast.textContent = 'Patch Bay could not start: ' + e.message + ' — reload the page';
+    toast.classList.add('show');
+  });
+</script>
+<script src="js/splash.js?v=13"></script>
+<script src="js/counter.js?v=13"></script>
+<script type="module" src="js/main.js?v=13"></script>
 </body>
 </html>

@@ -1,10 +1,18 @@
 :root {
-  --bg: #0b0d12;
+  --bg: #080b10;
   --panel: #161a22;
   --line: #2a3040;
   --text: #e8ecf5;
   --muted: #8b93a7;
   --accent: #5ce1e6;
+  /* The accent at a few strengths, so that rims, glows and tints are all one
+     colour rather than each their own guess at it. */
+  --accent-soft: rgba(92, 225, 230, 0.16);
+  --accent-glow: rgba(92, 225, 230, 0.45);
+  --lyric: #b06bd0;
+  --lyric-soft: rgba(176, 107, 208, 0.18);
+  --edge: rgba(255, 255, 255, 0.07);
+  --shadow: 0 8px 20px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
 
@@ -13,7 +21,12 @@
 html, body {
   margin: 0;
   height: 100%;
-  background: var(--bg);
+  /* Two pools of light behind the panels, so the dark edges of the page read as
+     depth rather than as one flat black. */
+  background:
+    radial-gradient(1200px 620px at 50% -12%, rgba(48, 92, 114, 0.32), transparent 68%),
+    radial-gradient(900px 520px at 88% 112%, rgba(96, 52, 118, 0.26), transparent 70%),
+    var(--bg);
   color: var(--text);
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   overscroll-behavior: none;
@@ -32,7 +45,8 @@ html, body {
 
 #topbar {
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(#171b24, #12151c);
+  background: linear-gradient(#1c2230, #12161e 72%, #10131a);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 8px 20px rgba(0, 0, 0, 0.35);
   padding: 6px 8px;
   padding-top: calc(6px + env(safe-area-inset-top));
   display: flex;
@@ -54,20 +68,50 @@ button {
   font: inherit;
   font-size: 11px;
   color: var(--text);
-  background: #1d2230;
+  background: linear-gradient(#252c3b, #1a1f2b);
   border: 1px solid var(--line);
   border-radius: 7px;
   padding: 7px 10px;
   white-space: nowrap;
   cursor: pointer;
+  /* A toolbar of flat rectangles reads as a wireframe: one inset highlight and
+     a soft shadow give every button a little thickness of its own. */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 1px 3px rgba(0, 0, 0, 0.45);
+  transition: background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
 }
-button:active { transform: scale(0.97); }
+button:active {
+  transform: scale(0.97);
+  background: linear-gradient(#1a202c, #141922);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55);
+}
 button:disabled { opacity: 0.5; }
-button.primary { background: #1d3b3f; border-color: #2b6b70; color: #b9f6f9; }
-button.primary.on { background: #123f42; color: var(--accent); }
-button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
-#btn-clear-rack { background: #3a1d24; border-color: #7d3542; color: #ffb3c0; }
-#btn-mic.on { background: #123f42; border-color: #2b6b70; color: var(--accent); }
+@media (hover: hover) {
+  button:hover {
+    background: linear-gradient(#2b3346, #1e2431);
+    border-color: #3a4459;
+  }
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary {
+  background: linear-gradient(#225157, #16343a);
+  border-color: #2f7d83;
+  color: #b9f6f9;
+  box-shadow: inset 0 1px 0 rgba(180, 255, 255, 0.14), 0 0 14px -4px var(--accent-glow);
+}
+button.primary.on { background: linear-gradient(#12504f, #0e3a3c); color: var(--accent); }
+button.on {
+  background: linear-gradient(#4a2a52, #331d3a);
+  border-color: #7a3d86;
+  color: #f2b6ff;
+  box-shadow: inset 0 1px 0 rgba(255, 200, 255, 0.12), 0 0 14px -5px rgba(216, 130, 240, 0.8);
+}
+#btn-clear-rack {
+  background: linear-gradient(#4b232c, #331920);
+  border-color: #7d3542;
+  color: #ffb3c0;
+}
+#btn-mic.on { background: linear-gradient(#12504f, #0e3a3c); border-color: #2b6b70; color: var(--accent); }
 
 .mini {
   display: inline-flex;
@@ -77,7 +121,66 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   color: var(--muted);
   white-space: nowrap;
 }
-.mini input[type=range] { width: 74px; }
+/* The master Vol slider, drawn like the rack's own, so the page reads as one
+   instrument rather than a form with a range input in it. */
+.mini input[type=range] {
+  width: 74px;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 16px;
+  background: transparent;
+}
+.mini input[type=range]::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 3px;
+  background: linear-gradient(#0d1118, #232b3a);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.mini input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 13px;
+  height: 13px;
+  margin-top: -4.5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 35%, #d8feff, var(--accent) 62%, #1c8d94);
+  box-shadow: 0 0 8px var(--accent-glow), 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+.mini input[type=range]::-moz-range-track {
+  height: 4px;
+  border-radius: 3px;
+  background: #232b3a;
+}
+.mini input[type=range]::-moz-range-thumb {
+  width: 13px;
+  height: 13px;
+  border: none;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+/* The master meter: how much the rack is actually sending out, beside the Vol
+   slider. Full while the phone is quiet means the loss is after the page. */
+.meter {
+  position: relative;
+  display: inline-block;
+  width: 5px;
+  height: 16px;
+  background: #10141b;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.8), 0 0 6px -2px var(--accent-glow);
+}
+.meter > i {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 0;
+  background: linear-gradient(#7de3a4, #f0d060 70%, #ff6b6b);
+  transition: height 0.06s linear;
+}
 .mini input[type=number] {
   width: 54px;
   background: #10141b;
@@ -87,6 +190,100 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   padding: 4px 6px;
   font: inherit;
   font-size: 11px;
+}
+
+/* The tune's name, on the top row of the app: the name every file it is
+   exported as is written under. It is one line whatever the name is — a long
+   one is cut with an ellipsis rather than pushing the toolbar down — and a tap
+   turns it into a box to rename the tune in. */
+.title-row {
+  flex-wrap: nowrap;
+  gap: 6px;
+}
+.tune-label {
+  flex: 0 0 auto;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+/* Written against the top bar, so the tighter phone rules below do not shrink
+   the tune's own name to a toolbar button's size. */
+#topbar #btn-tune-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+  font-size: 13px;
+  padding: 8px 10px;
+  background: linear-gradient(#0f1a1d, #0b1418);
+  border-color: #2a4a4f;
+  color: var(--accent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 14px -6px var(--accent-glow);
+}
+#topbar #btn-tune-name.unnamed { color: var(--muted); }
+#tune-name-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: #0d1a1c;
+  color: var(--text);
+  border: 1px solid #2b6b70;
+  border-radius: 7px;
+  padding: 7px 9px;
+  font: inherit;
+  font-size: 13px;
+}
+#tune-name-input:focus { outline: none; }
+#tune-name-input::placeholder { color: #5f6779; }
+
+/* The visitor counter, at the right of the title row: how many different people
+   have opened the app and how many times in all. The two numbers are stacked so
+   it costs the tune's name as little width as it can, and it is hidden until
+   js/counter.js has a number to put in it. */
+.viewer-count {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  padding: 3px 7px;
+  border: 1px solid #24303c;
+  border-radius: 7px;
+  background: linear-gradient(#0f151d, #0b1017);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  font-size: 8px;
+  line-height: 1.2;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--muted);
+}
+.viewer-count[hidden],
+.viewer-stat[hidden] { display: none; }
+.viewer-stat {
+  display: flex;
+  align-items: baseline;
+  gap: 3px;
+}
+.viewer-stat b {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  color: var(--accent);
+}
+.viewer-stat i { font-style: normal; }
+
+/* The toolbar has grown along with the rack's features, and on a phone every
+   extra row of it comes out of the rack. Tighten the buttons a little and their
+   gap, which is enough for the same actions to wrap into one row fewer. */
+@media (max-width: 700px) {
+  #topbar .bar-row { gap: 5px; }
+  #topbar button { font-size: 10px; padding: 6px 8px; }
+  .mini input[type=range] { width: 58px; }
 }
 
 /* Module picker sheet ----------------------------------------------------- */
@@ -102,7 +299,9 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
 .sheet-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+  background: rgba(4, 6, 10, 0.68);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
 }
 
 .sheet-panel {
@@ -114,11 +313,24 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   flex-direction: column;
   max-height: 80vh;
   overflow: hidden;
-  background: #12161f;
-  border-top: 1px solid var(--line);
+  background: linear-gradient(#1a202b, #12161f 55%, #0e121a);
+  border-top: 1px solid #333c50;
   border-radius: 14px 14px 0 0;
-  box-shadow: 0 -10px 30px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* The little grab bar every sheet carries at its top, the way a phone's own
+   sheets do. The panel is a flex column, so it is simply its first item. */
+.sheet-panel::before {
+  content: '';
+  flex: 0 0 auto;
+  align-self: center;
+  width: 40px;
+  height: 4px;
+  margin: 8px 0 0;
+  border-radius: 2px;
+  background: #3a4358;
 }
 
 .sheet-head {
@@ -127,6 +339,8 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   gap: 8px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--line);
+  background: linear-gradient(#1d2431, #171c26);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .sheet-head h2 {
   flex: 1;
@@ -146,11 +360,19 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
 }
 
 /* Search box above the module list. Its own Clear button replaces the browser's
-   native one, so every browser offers the same way out of a search. */
+   native one, so every browser offers the same way out of a search. The Search
+   button sits under the box: it applies the term and puts the keyboard away, so
+   the matches underneath it can be seen on a phone. */
 .sheet-search {
   display: flex;
+  flex-direction: column;
   gap: 6px;
+  margin: 0;
   padding: 10px 12px 0;
+}
+.sheet-search-row {
+  display: flex;
+  gap: 6px;
 }
 .sheet-search input {
   flex: 1;
@@ -175,6 +397,12 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   font-size: 10px;
   padding: 6px 9px;
 }
+.sheet-search-go {
+  width: 100%;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
 
 .sheet-list {
   display: grid;
@@ -194,8 +422,15 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   white-space: normal;
   padding: 9px 11px;
   border-radius: 9px;
-  background: hsl(var(--hue) 30% 14%);
-  border-color: hsl(var(--hue) 40% 27%);
+  background: linear-gradient(hsl(var(--hue) 32% 17%), hsl(var(--hue) 30% 11%));
+  border-color: hsl(var(--hue) 40% 29%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+@media (hover: hover) {
+  .module-option:hover {
+    background: linear-gradient(hsl(var(--hue) 34% 22%), hsl(var(--hue) 32% 14%));
+    border-color: hsl(var(--hue) 55% 42%);
+  }
 }
 /* A plain [hidden] rule is not enough against the flex display above. */
 .module-option[hidden] { display: none; }
@@ -211,6 +446,29 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   color: #9aa3b6;
 }
 
+/* One heading per family of modules in the picker, in the family's colour, so
+   the list reads as groups rather than one long run of buttons. */
+.module-group-head {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 2px 0;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--hue, 210) 65% 76%);
+  white-space: nowrap;
+}
+.module-group-head::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: hsl(var(--hue, 210) 40% 32%);
+}
+/* A plain [hidden] rule is not enough against the flex display above. */
+.module-group-head[hidden] { display: none; }
+
 @media (min-width: 700px) {
   .sheet-panel {
     max-width: 720px;
@@ -225,11 +483,16 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   flex: 1;
   min-height: 0;
   overflow: auto;
-  background-color: #0b0d12;
+  background-color: #080a0f;
+  /* Graph paper with a light behind it: dots every 20px, a rule every 40px, and
+     a soft pool of accent colour at the top of the rack, so a patch sits on a
+     floor rather than in a void. */
   background-image:
-    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
-  background-size: 40px 40px;
+    radial-gradient(120% 70% at 50% -10%, rgba(92, 225, 230, 0.07), transparent 60%),
+    radial-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1.4px),
+    linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 100% 100%, 20px 20px, 40px 40px, 40px 40px;
   -webkit-overflow-scrolling: touch;
 }
 
@@ -267,23 +530,31 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
 .card {
   position: absolute;
   width: 215px;
-  background: linear-gradient(180deg, #1a1f2a, #141821);
-  border: 1px solid hsl(var(--hue) 30% 26%);
-  border-radius: 10px;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #1e2532, #141922 62%, #11151d);
+  border: 1px solid hsl(var(--hue) 32% 30%);
+  border-radius: 11px;
+  /* A card is a piece of hardware: its own colour along the top edge, a lit
+     bevel inside it, and a shadow that sits it on the board. */
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
   font-size: 10px;
 }
 
-.card.dragging { opacity: 0.85; z-index: 20; }
+.card.dragging {
+  opacity: 0.92;
+  z-index: 20;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.6), 0 0 0 1px hsl(var(--hue) 80% 60% / 0.4);
+}
 
 .card-head {
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 6px 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  background: hsl(var(--hue) 35% 18% / 0.75);
-  border-radius: 9px 9px 0 0;
+  border-bottom: 1px solid hsl(var(--hue) 40% 34% / 0.55);
+  background: linear-gradient(180deg, hsl(var(--hue) 42% 26% / 0.85), hsl(var(--hue) 38% 16% / 0.85));
+  box-shadow: inset 0 2px 0 hsl(var(--hue) 85% 62% / 0.5);
+  border-radius: 10px 10px 0 0;
   touch-action: none;
   cursor: grab;
 }
@@ -326,13 +597,20 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
 
 .params { flex: 1; min-width: 0; padding: 2px; }
 
+/* The port labels sit just outside their dots, in the card's own gutter: a card
+   with ports gives the sliders room for them, so "In" and "CV" no longer land
+   on the start of a track, and "Out" and "Env" on the end of one. */
+.card-body:has(.col.ins:not(:empty)) .params { padding-left: 20px; }
+.card-body:has(.col.outs:not(:empty)) .params { padding-right: 20px; }
+
 .port {
   position: relative;
   width: 16px;
   height: 16px;
   border-radius: 50%;
-  background: #0a0d13;
+  background: radial-gradient(circle at 38% 32%, #1b2330, #05070b 72%);
   border: 2px solid hsl(var(--hue) 70% 55%);
+  box-shadow: 0 0 8px -3px hsl(var(--hue) 85% 62%), inset 0 0 3px rgba(0, 0, 0, 0.9);
   touch-action: none;
   cursor: crosshair;
 }
@@ -340,7 +618,9 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   border-color: hsl(var(--hue) 40% 70%);
   border-style: dashed;
 }
-.port.pending { box-shadow: 0 0 0 4px hsl(var(--hue) 80% 60% / 0.35); }
+.port.pending {
+  box-shadow: 0 0 0 4px hsl(var(--hue) 80% 60% / 0.35), 0 0 14px hsl(var(--hue) 85% 62% / 0.7);
+}
 
 .port span {
   position: absolute;
@@ -379,7 +659,8 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
 .param input[type=range]::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: #262d3c;
+  background: linear-gradient(hsl(var(--hue) 30% 32% / 0.6), hsl(var(--hue) 30% 16% / 0.9));
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.7);
 }
 .param input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
@@ -387,8 +668,22 @@ button.on { background: #3a2140; border-color: #7a3d86; color: #f2b6ff; }
   height: 14px;
   margin-top: -5px;
   border-radius: 50%;
-  background: hsl(var(--hue) 75% 62%);
+  background: radial-gradient(circle at 50% 32%, hsl(var(--hue) 85% 86%), hsl(var(--hue) 75% 62%) 60%, hsl(var(--hue) 70% 34%));
   border: 1px solid #0b0d12;
+  box-shadow: 0 0 9px -2px hsl(var(--hue) 85% 62%);
+}
+.param input[type=range]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: hsl(var(--hue) 30% 24%);
+}
+.param input[type=range]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #0b0d12;
+  border-radius: 50%;
+  background: hsl(var(--hue) 75% 62%);
+  box-shadow: 0 0 9px -2px hsl(var(--hue) 85% 62%);
 }
 
 .param select {
@@ -434,9 +729,10 @@ canvas.scope {
   width: 100%;
   height: 56px;
   margin-top: 6px;
-  background: #0a0e14;
+  background: linear-gradient(#0a0e14, #060910);
   border: 1px solid var(--line);
   border-radius: 6px;
+  box-shadow: inset 0 0 12px rgba(0, 0, 0, 0.8), 0 0 10px -6px hsl(var(--hue, 210) 85% 62%);
 }
 
 /* Empty rack hint --------------------------------------------------------- */
@@ -447,9 +743,10 @@ canvas.scope {
   left: 24px;
   max-width: 300px;
   padding: 18px 20px;
-  border: 1px dashed var(--line);
+  border: 1px dashed #37415a;
   border-radius: 12px;
-  background: rgba(22, 26, 34, 0.65);
+  background: linear-gradient(rgba(26, 32, 43, 0.8), rgba(16, 20, 27, 0.8));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 10px 24px rgba(0, 0, 0, 0.35);
   color: var(--muted);
   font-size: 11px;
   line-height: 1.5;
@@ -501,7 +798,8 @@ canvas.scope {
   gap: 8px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--line);
-  background: linear-gradient(#171b24, #12151c);
+  background: linear-gradient(#1c2230, #12161e 72%, #10131a);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
 }
 .patch-view-head h2 {
   margin: 0;
@@ -520,6 +818,16 @@ canvas.scope {
   text-overflow: ellipsis;
 }
 
+.patch-view-zoom {
+  display: flex;
+  gap: 4px;
+}
+.patch-view-zoom button {
+  padding: 6px 9px;
+  min-width: 32px;
+  text-align: center;
+}
+
 .patch-view-body {
   position: relative;
   flex: 1;
@@ -527,12 +835,18 @@ canvas.scope {
   padding: 8px;
 }
 
+/* The map is panned and zoomed with its own gestures, so the browser must keep
+   its scrolling and double-tap zoom out of the way. */
 #patch-map {
   display: block;
   width: 100%;
   height: 100%;
-  touch-action: manipulation;
+  touch-action: none;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
 }
+#patch-map.grabbing { cursor: grabbing; }
 
 #patch-map .map-cable {
   fill: none;
@@ -582,11 +896,169 @@ body:has(> freemilk-badge) .patch-view-hint {
   padding-bottom: calc(8px + env(safe-area-inset-bottom) + 48px);
 }
 
+/* The patch is a wide picture, so a phone held upright turns the whole view a
+   quarter turn into landscape: the panel is laid out along the screen's long
+   side, and turning the phone sideways shows it the way it was drawn. A screen
+   that is already landscape needs none of this, and the browser's own layout
+   takes over as soon as it is turned. */
+@media (orientation: portrait) {
+  #patch-view.open {
+    top: 0;
+    left: 100vw;
+    left: 100dvw;
+    right: auto;
+    bottom: auto;
+    width: 100vh;
+    width: 100dvh;
+    height: 100vw;
+    height: 100dvw;
+    transform-origin: top left;
+    transform: rotate(90deg);
+    /* The notch and the home bar travel with the device, not with the panel:
+       the screen's top edge is the panel's left, its right edge the panel's
+       top, and so on. */
+    padding-top: env(safe-area-inset-right, 0px);
+    padding-left: env(safe-area-inset-top, 0px);
+    padding-right: env(safe-area-inset-bottom, 0px);
+  }
+
+  #patch-view.open .patch-view-hint {
+    padding-bottom: calc(8px + env(safe-area-inset-left, 0px));
+  }
+
+  /* In the turned view the badge lands on the header's right end, not on the
+     hint, so move Close out from under it and leave the hint alone. */
+  body:has(> freemilk-badge) #patch-view.open .patch-view-hint {
+    padding-bottom: calc(8px + env(safe-area-inset-left, 0px));
+  }
+  body:has(> freemilk-badge) #patch-view.open .patch-view-head {
+    padding-right: 56px;
+  }
+}
+
+/* Full-screen audio visualiser ------------------------------------------- */
+
+#visualiser {
+  position: fixed;
+  inset: 0;
+  z-index: 320;
+  display: none;
+  background:
+    radial-gradient(90% 70% at 50% 45%, #0a1524, #03050a 72%);
+}
+#visualiser.open { display: block; }
+
+#visualiser-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.visualiser-hud {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: calc(10px + env(safe-area-inset-top)) 12px 12px;
+  pointer-events: none;
+}
+.visualiser-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.visualiser-text strong {
+  font-size: 13px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #eaf6ff;
+  text-shadow: 0 0 14px rgba(92, 225, 230, 0.7);
+}
+.visualiser-text span {
+  font-size: 10px;
+  color: #7f8ba3;
+}
+.visualiser-buttons {
+  display: flex;
+  gap: 6px;
+  pointer-events: auto;
+}
+
+/* The visualiser's own keyboard: the transport's keybed laid along the bottom
+   of the screen, so a patch can be played while the picture runs. Both octave
+   buttons sit at the left, clear of anything the host paints in a corner. */
+.visualiser-keyrow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 0 10px calc(10px + env(safe-area-inset-bottom));
+  pointer-events: auto;
+}
+
+.visualiser-keyrow .keys {
+  height: 92px;
+  opacity: 0.94;
+}
+
+#visualiser-oct-down,
+#visualiser-oct-up {
+  width: 34px;
+  padding: 0;
+  font-size: 18px;
+  align-self: stretch;
+  background: rgba(18, 24, 34, 0.72);
+  border-color: rgba(120, 165, 205, 0.35);
+  color: #d6ecff;
+}
+
+/* The same quarter turn as the patch view: a wide picture on a phone held
+   upright, and the browser's own layout once it is turned. */
+@media (orientation: portrait) {
+  #visualiser.open {
+    top: 0;
+    left: 100vw;
+    left: 100dvw;
+    right: auto;
+    bottom: auto;
+    width: 100vh;
+    width: 100dvh;
+    height: 100vw;
+    height: 100dvw;
+    transform-origin: top left;
+    transform: rotate(90deg);
+  }
+  #visualiser.open .visualiser-hud {
+    padding-top: calc(10px + env(safe-area-inset-right, 0px));
+    padding-left: calc(12px + env(safe-area-inset-top, 0px));
+    padding-right: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+  body:has(> freemilk-badge) #visualiser.open .visualiser-buttons {
+    padding-right: 56px;
+  }
+  /* The keyboard lies along the turned screen's bottom, so the insets move with
+     it: the safe areas of the screen's left, top and bottom edges. */
+  #visualiser.open .visualiser-keyrow {
+    padding-bottom: calc(10px + env(safe-area-inset-left, 0px));
+    padding-left: calc(10px + env(safe-area-inset-top, 0px));
+    padding-right: calc(10px + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Transport and keyboard ------------------------------------------------- */
 
 #transport {
   border-top: 1px solid var(--line);
-  background: linear-gradient(#12151c, #0d1016);
+  background: linear-gradient(#161b25, #0d1016 62%, #0a0d13);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 -8px 22px rgba(0, 0, 0, 0.4);
   padding: 6px 8px;
   padding-bottom: calc(6px + env(safe-area-inset-bottom));
   display: flex;
@@ -604,14 +1076,166 @@ body:has(> freemilk-badge) #transport {
 
 #song-info {
   font-size: 10px;
-  color: var(--muted);
+  color: #a4adc0;
   white-space: nowrap;
-  padding: 0 2px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.045);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* The transport has grown as the toolbar did — Click and Quantize beside Rec,
+   Play and Loop — and on a phone its rows wrap into one more line, which comes
+   out of the rack. Tighter buttons there keep them where they were. Only the
+   rows are tightened: the octave buttons and the keys are outside a .bar-row. */
+@media (max-width: 700px) {
+  #transport .bar-row { gap: 4px; }
+  #transport .bar-row button { font-size: 10px; padding: 6px 7px; }
+  /* The knobs are not transport buttons: their own padding is what shapes the
+     dial, so the tighter button rule above is left off them. */
+  #transport .bar-row .knob { padding: 2px 5px 0; font-size: 11px; }
 }
 
 /* Recording channels and the mix sheet ------------------------------------ */
 
 .chan-row { gap: 4px; }
+
+/* One knob per channel, above the keys: the parts of a song are balanced
+   against each other without leaving the keyboard. The row carries a little
+   light of its own, so the five knobs read as a mixer rather than as part of
+   the transport's buttons. */
+.chan-vol-row {
+  --knob-dark: rgba(255, 255, 255, 0.1);
+  flex-wrap: nowrap;
+  gap: 2px;
+  padding: 4px 2px 3px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: linear-gradient(180deg, rgba(92, 225, 230, 0.055), rgba(0, 0, 0, 0) 72%);
+}
+
+.chan-vol {
+  /* The channel's number and its dial both take their colour from here; the
+     lyric channel overrides it below. */
+  --knob-tint: var(--accent);
+  --knob-glow: rgba(92, 225, 230, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.chan-vol-name {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--knob-tint);
+  opacity: 0.75;
+}
+
+/* A knob is a button with a dial in it, and no body of its own: the ring is the
+   whole of what is drawn. It is turned by dragging up and down, because a
+   finger on the dial would cover the very ring it is setting. Its padding is
+   what gives it a touch target wider than the dial itself. */
+.knob {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 0 0 auto;
+  padding: 2px 5px 0;
+  background: transparent;
+  border: none;
+  border-radius: 9px;
+  box-shadow: none;
+  color: var(--text);
+  touch-action: none;
+  cursor: ns-resize;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+/* The dial never scales under the finger: the arc is drawn on the ring, and a
+   knob that shrank as it was touched would shift it about while dragging. */
+.knob:hover,
+.knob:active,
+.knob.dragging {
+  transform: none;
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.knob:focus-visible { outline: 2px solid var(--knob-tint); outline-offset: 1px; }
+
+/* The travel arc, as one conic gradient: unlit all the way round, lit from the
+   start of the turn to --knob-sweep, which js/keyboard.js sets. The gradient
+   begins at 225° — where the pointer rests at silence — and runs clockwise for
+   270°; the rest of the circle is left out of the ring entirely. */
+.knob-dial {
+  position: relative;
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 225deg,
+    var(--knob-tint) 0deg,
+    var(--knob-tint) var(--knob-sweep, 0deg),
+    var(--knob-dark) var(--knob-sweep, 0deg),
+    var(--knob-dark) 270deg,
+    rgba(255, 255, 255, 0.02) 270deg
+  );
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 10px -3px var(--knob-glow);
+}
+
+/* The knurled cap inside the ring, with the pointer on it. The cap hides the
+   middle of the gradient, which is what leaves the arc as a ring. */
+.knob-cap {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 30%, #3d4759, #1d2431 58%, #0b0f16);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), inset 0 -2px 5px rgba(0, 0, 0, 0.6),
+    0 1px 2px rgba(0, 0, 0, 0.5);
+}
+.knob-cap::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  width: 2px;
+  height: 44%;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: linear-gradient(#f2fbff, #93a9c0);
+  box-shadow: 0 0 6px var(--knob-glow);
+  transform-origin: 50% 100%;
+  transform: rotate(var(--knob-angle, 0deg));
+}
+
+.knob-val {
+  font-size: 8px;
+  line-height: 10px;
+  letter-spacing: 0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.knob.dragging .knob-val { color: var(--knob-tint); }
+.knob.off .knob-dial { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.55); }
+.knob.off .knob-val { color: #5f6779; }
+
+/* Channel 5 is the lyric channel, so its knob carries the colour its button
+   does. */
+.chan-vol.lyric {
+  --knob-tint: #b06bd0;
+  --knob-glow: rgba(176, 107, 208, 0.6);
+}
+
 
 .chan-label {
   font-size: 10px;
@@ -627,16 +1251,33 @@ button.chan {
   text-align: center;
 }
 button.chan.on {
-  background: #123f42;
-  border-color: #2b6b70;
+  background: linear-gradient(#17585c, #0f3b3f);
+  border-color: #34949a;
   color: var(--accent);
+  box-shadow: inset 0 1px 0 rgba(180, 255, 255, 0.14), 0 0 14px -5px var(--accent-glow);
 }
 button.chan.has::after {
   content: "•";
   margin-left: 2px;
   color: #7de3a4;
+  text-shadow: 0 0 8px rgba(125, 227, 164, 0.8);
 }
 button.chan.has.on::after { color: var(--accent); }
+
+/* Channel 5 is the lyric channel: it records the voice rather than notes, so it
+   is drawn in its own colour and always reads as the one that is not a keyboard
+   part. */
+button.chan.lyric {
+  border-color: #6a3d86;
+  color: #e6b6ff;
+}
+button.chan.lyric.on {
+  background: linear-gradient(#533063, #351d3d);
+  border-color: #b063c8;
+  color: #ffd0ff;
+  box-shadow: inset 0 1px 0 rgba(255, 200, 255, 0.16), 0 0 14px -5px rgba(216, 130, 240, 0.9);
+}
+button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 182, 255, 0.8); }
 
 #btn-mix {
   margin-left: auto;
@@ -665,11 +1306,42 @@ button.chan.has.on::after { color: var(--accent); }
   border-color: #40305a;
   background: #1b1526;
 }
+#mix-song {
+  --hue: 40;
+  border-color: #5a4a28;
+  background: #221c12;
+}
+#mix-song .module-option-name { color: #ffe0a3; }
+
+/* Saved presets: a row per preset, with a delete button beside the one that
+   loads it. */
+.preset-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.preset-option {
+  --hue: 210;
+  flex: 1;
+  min-width: 0;
+}
+.preset-del {
+  padding: 0 12px;
+  background: #3a1d24;
+  border-color: #7d3542;
+  color: #ffb3c0;
+  font-size: 14px;
+}
 
 #keyboard-wrap {
   display: flex;
   align-items: stretch;
   gap: 6px;
+  padding: 4px;
+  background: linear-gradient(#10141c, #0b0e15);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  border-radius: 9px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 6px 14px rgba(0, 0, 0, 0.35);
 }
 
 #oct-down,
@@ -677,6 +1349,8 @@ button.chan.has.on::after { color: var(--accent); }
   width: 34px;
   padding: 0;
   font-size: 16px;
+  background: linear-gradient(#262e3e, #161b25);
+  color: #cfe6f0;
 }
 
 .keys {
@@ -687,19 +1361,19 @@ button.chan.has.on::after { color: var(--accent); }
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: none;
 }
 
 .key { position: relative; cursor: pointer; }
 
 .key.white {
   flex: 1;
-  background: linear-gradient(#ffffff, #dfe4ee);
-  border: 1px solid #9aa3b5;
-  border-radius: 0 0 5px 5px;
+  background: linear-gradient(#ffffff, #eef2f9 62%, #d2d9e6);
+  border: 1px solid #8d97ab;
+  border-radius: 0 0 6px 6px;
   margin-right: -1px;
   z-index: 1;
-  box-shadow: inset 0 -4px 6px rgba(0, 0, 0, 0.12);
+  box-shadow: inset 0 -5px 7px rgba(0, 0, 0, 0.12), inset 0 1px 0 #ffffff,
+    0 2px 3px rgba(0, 0, 0, 0.3);
 }
 
 .key.black {
@@ -707,16 +1381,23 @@ button.chan.has.on::after { color: var(--accent); }
   top: 0;
   height: 62%;
   width: 4.1%;
-  background: linear-gradient(#2b3140, #0d1016);
+  background: linear-gradient(#394254, #171c27 55%, #080b10);
   border: 1px solid #000000;
-  border-radius: 0 0 4px 4px;
+  border-radius: 0 0 5px 5px;
   z-index: 2;
   transform: translateX(-50%);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  box-shadow: 0 3px 6px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -3px 4px rgba(255, 255, 255, 0.05);
 }
 
-.key.white.active { background: linear-gradient(#bfe9ff, #7fc4ff); }
-.key.black.active { background: linear-gradient(#6aa8ff, #2f5fbf); }
+.key.white.active {
+  background: linear-gradient(#dcf6ff, #93d2ff 68%, #6bb6f5);
+  box-shadow: inset 0 -3px 8px rgba(0, 0, 0, 0.18), 0 0 14px rgba(120, 200, 255, 0.6);
+}
+.key.black.active {
+  background: linear-gradient(#82baff, #2f5fbf);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6), 0 0 14px rgba(90, 150, 255, 0.55);
+}
 
 .key .lbl {
   position: absolute;
@@ -736,18 +1417,216 @@ button.chan.has.on::after { color: var(--accent); }
      never covers the transport's buttons; this is only a starting point. */
   bottom: calc(150px + env(safe-area-inset-bottom));
   transform: translate(-50%, 10px);
-  background: #1b2130;
-  border: 1px solid var(--line);
+  background: linear-gradient(#242c3c, #171d28);
+  border: 1px solid #39435a;
   color: var(--text);
   font-size: 11px;
   line-height: 1.35;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: 9px;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.07);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
   max-width: 84vw;
   text-align: center;
-  z-index: 100;
+  z-index: 400;
 }
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+
+/* Splash -----------------------------------------------------------------
+   The card that stands in front of the app while the rack is built: the maker's
+   name in coloured, extruded letters over a starburst. js/splash.js splits the
+   words into letters, gives each its own hue and plays the tune; this is only
+   what they look like. */
+
+#splash {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(74, 30, 120, 0.9), rgba(9, 7, 20, 0.98) 64%),
+    #05040c;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity 0.6s ease, transform 0.6s ease;
+  /* A last resort: if js/splash.js never arrives, the card still stands aside
+     rather than hiding the app behind it for good. */
+  animation: splash-away 0.8s ease 8s forwards;
+}
+
+#splash.splash-out {
+  opacity: 0;
+  transform: scale(1.06);
+  pointer-events: none;
+}
+
+/* The starburst: two fans of beams, one turning slowly clockwise and one against
+   it, so the light behind the name never sits still. */
+.splash-rays {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 200vmax;
+  height: 200vmax;
+  margin: -100vmax 0 0 -100vmax;
+  pointer-events: none;
+  background: repeating-conic-gradient(from 0deg,
+    rgba(255, 226, 148, 0.3) 0deg 2deg,
+    rgba(255, 226, 148, 0) 2deg 12deg);
+  -webkit-mask-image: radial-gradient(circle, #000 4%, rgba(0, 0, 0, 0.6) 30%, transparent 58%);
+  mask-image: radial-gradient(circle, #000 4%, rgba(0, 0, 0, 0.6) 30%, transparent 58%);
+  animation: splash-spin 34s linear infinite;
+}
+
+.splash-rays.thin {
+  background: repeating-conic-gradient(from 12deg,
+    rgba(126, 226, 255, 0.26) 0deg 1.1deg,
+    rgba(126, 226, 255, 0) 1.1deg 7deg);
+  -webkit-mask-image: radial-gradient(circle, #000 2%, rgba(0, 0, 0, 0.45) 26%, transparent 52%);
+  mask-image: radial-gradient(circle, #000 2%, rgba(0, 0, 0, 0.45) 26%, transparent 52%);
+  animation: splash-spin 22s linear infinite reverse;
+}
+
+.splash-glow {
+  position: absolute;
+  width: 74vmin;
+  height: 74vmin;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(circle,
+    rgba(255, 246, 210, 0.5) 0%,
+    rgba(255, 196, 120, 0.28) 26%,
+    rgba(180, 110, 255, 0.18) 46%,
+    transparent 70%);
+  animation: splash-pulse 3.4s ease-in-out infinite;
+}
+
+.splash-card {
+  position: relative;
+  z-index: 1;
+  max-width: 100%;
+  text-align: center;
+  perspective: 700px;
+}
+
+.splash-line {
+  margin: 0;
+  font-family: "Arial Rounded MT Bold", "Marker Felt", "Chalkboard SE", "Arial Black", system-ui, sans-serif;
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: 0.02em;
+  transform-style: preserve-3d;
+}
+
+.splash-made {
+  font-size: clamp(20px, 7.5vw, 40px);
+  letter-spacing: 0.14em;
+}
+
+.splash-name {
+  font-size: clamp(46px, 17vw, 104px);
+  animation: splash-hover 5.2s ease-in-out infinite;
+}
+
+.splash-site {
+  font-size: clamp(26px, 10.5vw, 58px);
+}
+
+/* One letter, cut in colour: the flat colour on top, a stack of darker copies
+   below it for the depth, a glow around it, and the gloss in ::after. The depth
+   is measured in em, so the small words are cut as deeply as the big one. */
+.splash-letter {
+  display: inline-block;
+  position: relative;
+  color: hsl(var(--h, 300) 92% 62%);
+  text-shadow:
+    0 0.03em 0 hsl(var(--h, 300) 92% 52%),
+    0 0.06em 0 hsl(var(--h, 300) 90% 46%),
+    0 0.09em 0 hsl(var(--h, 300) 88% 40%),
+    0 0.12em 0 hsl(var(--h, 300) 86% 34%),
+    0 0.15em 0 hsl(var(--h, 300) 84% 28%),
+    0 0.18em 0 hsl(var(--h, 300) 82% 22%),
+    0 0.21em 0 hsl(var(--h, 300) 80% 17%),
+    0 0.32em 0.5em rgba(0, 0, 0, 0.62),
+    0 0 0.8em hsl(var(--h, 300) 100% 66% / 0.55);
+  animation: splash-pop 0.72s cubic-bezier(0.18, 0.9, 0.32, 1.35) both;
+  animation-delay: calc(var(--i, 0) * 42ms + 90ms);
+}
+
+.splash-letter::after {
+  content: attr(data-ch);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(255, 255, 255, 0.55) 32%,
+    rgba(255, 255, 255, 0) 52%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.splash-tap {
+  margin: clamp(20px, 6vh, 46px) 0 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  letter-spacing: 0.42em;
+  text-indent: 0.42em;
+  text-transform: uppercase;
+  color: rgba(255, 240, 208, 0.86);
+  text-shadow: 0 0 14px rgba(255, 214, 140, 0.6);
+  animation: splash-breathe 2.4s ease-in-out infinite;
+}
+
+@keyframes splash-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes splash-pulse {
+  0%, 100% { opacity: 0.62; transform: scale(0.94); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes splash-pop {
+  0% { opacity: 0; transform: translateY(26px) scale(0.55) rotate(-10deg); }
+  70% { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1) rotate(0deg); }
+}
+
+@keyframes splash-hover {
+  0%, 100% { transform: translateY(0) rotate(-0.6deg); }
+  50% { transform: translateY(-8px) rotate(0.6deg); }
+}
+
+@keyframes splash-breathe {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@keyframes splash-away {
+  to { opacity: 0; visibility: hidden; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .splash-rays,
+  .splash-rays.thin,
+  .splash-glow,
+  .splash-name,
+  .splash-tap,
+  .splash-letter {
+    animation: none !important;
+  }
+}

@@ -1,17 +1,20 @@
-// Keeping the rack across a reload.
+// Every visit starts from a clean room ---------------------------------------
 //
-// The state lives in memory only: a page that is reloaded, or a browser that iOS
-// closes because it would not answer a request it was shown, starts again from an
-// empty room. So the rack, its cables and the recorded channels are written down
-// as they go and read back on the next load. A sample is the one thing that cannot
-// be written down — an AudioBuffer is not text — so a Sampler comes back with its
-// settings and no sample, which is what its card then reads.
+// Nothing about a session is carried over: a reload — or a browser iOS closes
+// because it would not answer a request it was shown — opens on the default rack
+// with every module at its original settings, the five channels empty, their
+// knobs at 0 dB, the song stopped, Rec on channel 1 and the keyboard at its
+// middle octave. What is written on the device on purpose — the player's own
+// presets — stays; a rack, a take or a mix does not.
+//
+// The cleaning below is what a preset or a song file goes through on its way in:
+// only settings the current build knows are kept, so a file from another visit
+// cannot leave a module with a missing or stale parameter.
 
-import { app, CHANNEL_COUNT } from './app.js';
-import { DEFS, defaultParams } from './modules.js';
+import { app, CHANNEL_COUNT, NOTE_CHANNEL_COUNT } from './app.js?v=12';
+import { DEFS, defaultParams } from './modules.js?v=12';
 
 const KEY = 'patchbay.rack.v1';
-const SAVE_MS = 2000;
 
 function number(v, fallback) {
   const n = Number(v);
@@ -25,6 +28,15 @@ function clamp(n, min, max) {
 function idNumber(id) {
   const n = Number(String(id).replace(/\D/g, ''));
   return Number.isFinite(n) ? n : 0;
+}
+
+// Ids come from a counter that starts again when the page is reloaded or a
+// preset is loaded, so it has to begin after the highest id the rack holds.
+export function noteIds(modules, cables) {
+  let maxId = 0;
+  for (const m of modules) maxId = Math.max(maxId, idNumber(m.id));
+  for (const c of cables) maxId = Math.max(maxId, idNumber(c.id));
+  app.nextId = Math.max(app.nextId, maxId + 1);
 }
 
 // Start from what the module's definition asks for and let the saved values
@@ -44,7 +56,7 @@ function cleanParams(type, saved) {
   return params;
 }
 
-function cleanModule(m, seen) {
+export function cleanModule(m, seen) {
   if (!m || typeof m !== 'object') return null;
   const type = String(m.type);
   if (!DEFS[type]) return null;
@@ -61,7 +73,7 @@ function cleanModule(m, seen) {
   };
 }
 
-function cleanCable(c, byId) {
+export function cleanCable(c, byId) {
   if (!c || !c.from || !c.to) return null;
   const from = byId.get(String(c.from.id));
   const to = byId.get(String(c.to.id));
@@ -77,7 +89,7 @@ function cleanCable(c, byId) {
   };
 }
 
-function cleanEvents(list) {
+export function cleanEvents(list) {
   if (!Array.isArray(list)) return [];
   const out = [];
   for (const e of list) {
@@ -94,90 +106,81 @@ function cleanEvents(list) {
   return out;
 }
 
-// Read a saved rack back into the app. Returns true when there was one to read,
-// and false for anything unreadable, so the default rack is built instead.
-export function loadRack() {
-  let saved = null;
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return false;
-    saved = JSON.parse(raw);
-  } catch (e) {
-    return false;
-  }
-  if (!saved || typeof saved !== 'object' || !Array.isArray(saved.modules)) return false;
-
+// A channel's own rack, saved with the take so the channel can be played back
+// and mixed down through the sound it was recorded with. Only what a rack is —
+// modules, settings and cables — is written down; a Sampler's sample is an
+// AudioBuffer and cannot be, so that channel comes back with its patch and no
+// sample, the same as the rack's own Sampler does.
+export function cleanRack(saved) {
+  if (!saved || typeof saved !== 'object' || !Array.isArray(saved.modules)) return null;
   try {
     const seen = new Set();
     const modules = saved.modules.map((m) => cleanModule(m, seen)).filter(Boolean);
+    if (!modules.length) return null;
     const byId = new Map(modules.map((m) => [m.id, m]));
-
-    app.state.modules = modules;
-    app.state.cables = (Array.isArray(saved.cables) ? saved.cables : [])
-      .map((c) => cleanCable(c, byId))
-      .filter(Boolean);
-
-    app.state.bpm = clamp(number(saved.bpm, app.state.bpm), 40, 240);
-    app.state.master = clamp(number(saved.master, app.state.master), 0, 1);
-    app.keyBase = clamp(number(saved.keyBase, app.keyBase), 12, 72);
-
-    const channel = clamp(Math.round(number(saved.channel, 0)), 0, CHANNEL_COUNT - 1);
-    const channels = [];
-    for (let i = 0; i < CHANNEL_COUNT; i++) {
-      channels.push(cleanEvents((Array.isArray(saved.channels) ? saved.channels : [])[i]));
-    }
-    app.song.channels = channels;
-    app.song.channel = channel;
-    app.song.events = channels[channel];
-    app.song.loop = !!saved.loop;
-
-    // Ids come from a counter that starts at 1 again on a reload, so it has to
-    // begin after the highest id the restored rack holds.
-    let maxId = 0;
-    for (const m of modules) maxId = Math.max(maxId, idNumber(m.id));
-    for (const c of app.state.cables) maxId = Math.max(maxId, idNumber(c.id));
-    app.nextId = Math.max(app.nextId, maxId + 1);
-
-    return true;
+    return {
+      bpm: clamp(number(saved.bpm, 120), 40, 240),
+      master: clamp(number(saved.master, 1), 0, 1),
+      modules,
+      cables: (Array.isArray(saved.cables) ? saved.cables : [])
+        .map((c) => cleanCable(c, byId))
+        .filter(Boolean)
+    };
   } catch (e) {
-    return false;
+    return null;
   }
 }
 
-// Write the state down. Cheap enough for a timer: a rack is a few kilobytes and
-// nothing here is audio.
+// Read what the last visit left behind. Nothing is ever kept between visits now,
+// so this only puts the in-memory song back to its first-visit state — the five
+// channels empty, their knobs at 0 dB, no loop, Rec on channel 1, the keyboard
+// at its middle octave — and clears anything an older build had written down.
+// Returns false, as there is no session to restore.
+export function loadRack() {
+  app.song.channels = [];
+  for (let i = 0; i < CHANNEL_COUNT; i++) app.song.channels.push([]);
+
+  app.song.racks = [];
+  for (let i = 0; i < NOTE_CHANNEL_COUNT; i++) app.song.racks.push(null);
+
+  app.song.volumes = [];
+  for (let i = 0; i < CHANNEL_COUNT; i++) app.song.volumes.push(1);
+
+  app.song.channel = 0;
+  app.song.events = app.song.channels[0];
+  app.song.loop = false;
+  app.song.playing = false;
+  // The click is on and Quantize is off, the way a first visit finds them: a
+  // take is counted in, and its timing is kept as it was played.
+  app.song.click = true;
+  app.song.quantize = false;
+  app.song.recording = false;
+  app.song.lyricRecording = false;
+  app.song.lyrics = null;
+  app.song.name = '';
+  app.keyBase = 48;
+
+  forgetSession();
+  return false;
+}
+
+// Forget whatever an older build left on the device. Kept under the name the
+// paths that used to write the session down call — a song import, the Default
+// rack button — so they clear it too rather than filling it again.
 export function saveRack() {
-  try {
-    localStorage.setItem(
-      KEY,
-      JSON.stringify({
-        bpm: app.state.bpm,
-        master: app.state.master,
-        keyBase: app.keyBase,
-        channel: app.song.channel,
-        loop: app.song.loop,
-        modules: app.state.modules.map((m) => ({
-          id: m.id,
-          type: m.type,
-          x: m.x,
-          y: m.y,
-          params: m.params
-        })),
-        cables: app.state.cables,
-        channels: app.song.channels
-      })
-    );
-  } catch (e) {
-    /* no storage, or no room: the rack simply does not survive a reload */
-  }
+  forgetSession();
 }
 
-export function startAutoSave(ms = SAVE_MS) {
-  saveRack();
-  // A phone can hide the page at any moment; writing once more on the way out
-  // keeps the last notes of a take.
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'hidden') saveRack();
-  });
-  return setInterval(saveRack, ms);
+// There is nothing being kept between visits, so there is no timer to start.
+export function startAutoSave() {
+  forgetSession();
+  return null;
+}
+
+function forgetSession() {
+  try {
+    localStorage.removeItem(KEY);
+  } catch (e) {
+    /* no storage: nothing was kept anyway */
+  }
 }

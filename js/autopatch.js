@@ -5,8 +5,8 @@
 // with envelopes and LFOs wired into the VCA and filter, and the sequencer
 // into the oscillator pitch. Ports sum, so several sources can share one input.
 
-import { DEFS } from './modules.js';
-import { app, addCable, removeAllCables } from './app.js';
+import { DEFS } from './modules.js?v=12';
+import { app, addCable, removeAllCables } from './app.js?v=12';
 
 const SOURCES = [
   'vco',
@@ -42,7 +42,14 @@ const SOURCES = [
   'boing',
   'buzz',
   'tweet',
-  'glitch'
+  'glitch',
+  'bell',
+  'marimba',
+  'shaker',
+  'tom',
+  'crash',
+  'chord',
+  'downlifter'
 ];
 const CHAIN = [
   'vcf',

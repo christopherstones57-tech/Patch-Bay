@@ -2,9 +2,18 @@
 // (real time, MediaRecorder). Every export renders the mix — every recording
 // channel on one timeline.
 
-import { app, songLength, mixEvents } from './app.js';
-import { Engine } from './engine.js';
-import { playOnce, stopPlayback } from './keyboard.js';
+import {
+  app,
+  lyricEnd,
+  hasLyrics,
+  NOTE_CHANNEL_COUNT,
+  LYRIC_CHANNEL,
+  MAX_CHANNEL_VOLUME
+} from './app.js?v=12';
+import { Engine } from './engine.js?v=12';
+import { playOnce, stopPlayback } from './keyboard.js?v=12';
+import { mixLyricsInto } from './lyrics.js?v=12';
+import { voiceBus } from './voices.js?v=12';
 
 function writeString(view, offset, str) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));
@@ -76,37 +85,144 @@ export async function downloadBlob(blob, name) {
   }, 4000);
 }
 
-// Renders the mix of every channel (or a short test note when nothing is
-// recorded) through a fresh copy of the patch in an OfflineAudioContext, so
+// The name an exported file is written under: the song's own name, as typed at
+// the top of the app or in the Mix sheet, made safe for a file system, with the
+// format's extension on the end. A name that already ends in an extension loses
+// it, so "night drive.wav" is not saved as "night drive.wav.wav", and a song
+// nobody has named keeps the plain default.
+export function exportFileName(ext, fallback) {
+  const typed = String((app.song && app.song.name) || '')
+    .trim()
+    .replace(/\.(wav|flac|ogg|json)$/i, '')
+    .trim();
+  const base = typed
+    .replace(/[\\/:*?"<>|\u0000-\u001f]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/^[\s.-]+|[\s.-]+$/g, '')
+    .slice(0, 80)
+    .trim();
+  return (base || fallback) + '.' + ext;
+}
+
+// A channel's own level, as the five knobs above the keyboard set them, so a mix
+// comes out balanced the way it was heard.
+function mixVolume(i) {
+  const v = app.song.volumes ? app.song.volumes[i] : 1;
+  const n = Number(v);
+  return Number.isFinite(n) ? Math.max(0, Math.min(MAX_CHANNEL_VOLUME, n)) : 1;
+}
+
+// Renders the mix: every note channel through the rack it was recorded with, and
+// the lyric channel's voice take, all into one graph — or a short test note when
+// nothing is recorded. One OfflineAudioContext renders the whole thing, so
 // exporting is much faster than real time.
 export async function renderSong() {
-  const events = mixEvents();
   const tail = 2.5;
-  const duration = (events.length ? songLength(events) : 2.5) + tail;
   const rate = 44100;
 
-  const off = new OfflineAudioContext(2, Math.ceil(rate * duration), rate);
-  const engine = new Engine(off, app.state, { offline: true, duration });
-
-  if (events.length) {
-    for (const ev of events) {
-      engine.noteOn(ev.midi, ev.start, ev.vel);
-      engine.noteOff(ev.midi, ev.end == null ? ev.start + 0.25 : ev.end);
+  // Which note channels hold something to render, and how long the song runs.
+  const parts = [];
+  let end = 0;
+  for (let i = 0; i < NOTE_CHANNEL_COUNT; i++) {
+    const evs = app.song.channels[i];
+    if (!evs.length) continue;
+    parts.push(i);
+    for (const ev of evs) {
+      const e = ev.end == null ? ev.start + 0.3 : ev.end;
+      if (e > end) end = e;
     }
-  } else {
+  }
+  end = Math.max(end, lyricEnd());
+
+  const duration = (end || 2.5) + tail;
+  const frames = Math.ceil(rate * duration);
+
+  const off = new OfflineAudioContext(2, frames, rate);
+  const bus = off.createGain();
+  bus.gain.value = 1;
+  bus.connect(off.destination);
+
+  const engines = [];
+
+  if (parts.length) {
+    // One engine per channel, from that channel's own rack, so a Sampler part and
+    // a part made on the default patch sound as they did when they were recorded.
+    // Equal-gain, the same as playback: each engine has already levelled its own
+    // patch, so the parts are taken down together to fit under full scale.
+    const share = 1 / parts.length;
+    for (const i of parts) {
+      const gain = off.createGain();
+      gain.gain.value = share * mixVolume(i);
+      gain.connect(bus);
+
+      const engine = new Engine(off, app.song.racks[i] || app.state, {
+        offline: true,
+        duration,
+        out: gain,
+        schedulers: false
+      });
+      engines.push(engine);
+
+      for (const ev of app.song.channels[i]) {
+        engine.noteOn(ev.midi, ev.start, ev.vel);
+        engine.noteOff(ev.midi, ev.end == null ? ev.start + 0.25 : ev.end);
+      }
+    }
+  } else if (!hasLyrics()) {
+    // Nothing recorded yet: something to hear, through the rack as it is now.
+    const engine = new Engine(off, app.state, {
+      offline: true,
+      duration,
+      out: bus,
+      schedulers: false
+    });
+    engines.push(engine);
     engine.noteOn(60, 0.05, 0.9);
     engine.noteOff(60, 1.8);
   }
 
+  // The lyric take joins the mix after the notes' own levelling, at its place on
+  // the timeline, and is kept exactly as it was captured.
+  if (hasLyrics()) mixLyricsInto(off, bus, 0, mixVolume(LYRIC_CHANNEL));
+
   const buffer = await off.startRendering();
-  engine.dispose();
+  for (const engine of engines) {
+    try {
+      engine.dispose();
+    } catch (e) {
+      /* ignore */
+    }
+  }
+  return guardPeak(buffer);
+}
+
+// Several engines' outputs summed can pass full scale on the loudest moment of
+// the song. Pull the whole mix back rather than let the format clip it: the parts
+// keep their balance, only the level is lowered, and only when it has to be.
+function guardPeak(buffer) {
+  const chans = [];
+  let peak = 0;
+  for (let c = 0; c < buffer.numberOfChannels; c++) {
+    const d = buffer.getChannelData(c);
+    chans.push(d);
+    for (let i = 0; i < d.length; i++) {
+      const v = Math.abs(d[i]);
+      if (v > peak) peak = v;
+    }
+  }
+  if (peak > 0.98) {
+    const scale = 0.98 / peak;
+    for (const d of chans) for (let i = 0; i < d.length; i++) d[i] *= scale;
+  }
   return buffer;
 }
 
 export async function exportWav() {
   const buffer = await renderSong();
   const blob = new Blob([encodeWav(buffer)], { type: 'audio/wav' });
-  await downloadBlob(blob, 'patch-bay-mix.wav');
+  const name = exportFileName('wav', 'patch-bay-mix');
+  await downloadBlob(blob, name);
+  return name;
 }
 
 /* FLAC ---------------------------------------------------------------------
@@ -362,7 +478,9 @@ export function encodeFlac(buffer) {
 export async function exportFlac() {
   const buffer = await renderSong();
   const blob = new Blob(encodeFlac(buffer), { type: 'audio/flac' });
-  await downloadBlob(blob, 'patch-bay-mix.flac');
+  const name = exportFileName('flac', 'patch-bay-mix');
+  await downloadBlob(blob, name);
+  return name;
 }
 
 export function oggMime() {
@@ -396,7 +514,13 @@ export async function exportOgg() {
   stopPlayback();
 
   const dest = app.ctx.createMediaStreamDestination();
-  app.engine.master.connect(dest);
+  // Everything the speakers are playing: the live rack's own ceiling (the keys,
+  // and the lyric take, which joins at its volume) and the bus every recorded
+  // channel's voice is summed on. The file then holds exactly what is heard.
+  const taps = [app.engine.rail || app.engine.volume];
+  const bus = voiceBus();
+  if (bus) taps.push(bus);
+  for (const t of taps) t.connect(dest);
 
   const chunks = [];
   const rec = new MediaRecorder(dest.stream, { mimeType: mime });
@@ -413,14 +537,18 @@ export async function exportOgg() {
   rec.stop();
   await stopped;
 
-  try {
-    app.engine.master.disconnect(dest);
-  } catch (e) {
-    /* ignore */
+  for (const t of taps) {
+    try {
+      t.disconnect(dest);
+    } catch (e) {
+      /* ignore */
+    }
   }
 
   if (!chunks.length) throw new Error('The browser recorded no audio');
 
   const blob = new Blob(chunks, { type: 'audio/ogg' });
-  await downloadBlob(blob, 'patch-bay-mix.ogg');
+  const name = exportFileName('ogg', 'patch-bay-mix');
+  await downloadBlob(blob, name);
+  return name;
 }

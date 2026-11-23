@@ -4011,6 +4011,574 @@ export const DEFS = {
     }
   },
 
+  bell: {
+    name: 'Bell',
+    hue: 58,
+    params: [
+      R('ratio', 'Ratio', 0.5, 8, 3.5, 0.01, '×'),
+      R('index', 'Index', 0, 1, 0.55),
+      R('decay', 'Decay', 0.3, 8, 2.4, 0.01, 's'),
+      R('tune', 'Tune', -24, 24, 0, 1),
+      R('level', 'Level', 0, 1, 0.55)
+    ],
+    inputs: [],
+    outputs: [{ id: 'out', label: 'Out', kind: 'audio' }],
+    create(engine, mod) {
+      const ctx = engine.ctx;
+      const p = mod.params;
+      const out = ctx.createGain();
+      out.gain.value = p.level;
+
+      return {
+        inputs: {},
+        outputs: { out },
+        setParam(key) {
+          if (key === 'level') out.gain.setTargetAtTime(p.level, ctx.currentTime, 0.02);
+        },
+        noteOn(midi, time, vel = 1) {
+          const t = Math.max(safeTime(time), ctx.currentTime);
+          const len = Math.max(0.3, p.decay);
+          const base = clampHz(midiToFreq(midi) * Math.pow(2, (p.tune || 0) / 12));
+          const ratio = Math.max(0.5, p.ratio);
+          const amp = Math.max(0.02, Math.min(1, vel)) * 0.5;
+
+          const carrier = ctx.createOscillator();
+          carrier.type = 'sine';
+          carrier.frequency.setValueAtTime(base, t);
+
+          // A second sine bends the carrier's pitch. Its depth is highest at the
+          // strike and falls away fast, so the bell opens bright and then
+          // settles into a pure tone.
+          const modOsc = ctx.createOscillator();
+          modOsc.type = 'sine';
+          modOsc.frequency.setValueAtTime(clampHz(base * ratio), t);
+          const depth = Math.max(0, Math.min(1, p.index)) * base * 6;
+          const modGain = ctx.createGain();
+          modGain.gain.setValueAtTime(Math.max(0.0001, depth), t);
+          modGain.gain.exponentialRampToValueAtTime(
+            0.0001,
+            t + Math.min(len, 0.12 + len * 0.25)
+          );
+
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(amp, t + 0.004);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+
+          modOsc.connect(modGain);
+          modGain.connect(carrier.frequency);
+          carrier.connect(g);
+          g.connect(out);
+          modOsc.start(t);
+          carrier.start(t);
+          modOsc.stop(t + len + 0.05);
+          carrier.stop(t + len + 0.05);
+          carrier.onended = () => {
+            try {
+              carrier.disconnect();
+              modOsc.disconnect();
+              modGain.disconnect();
+              g.disconnect();
+            } catch (e) {
+              /* ignore */
+            }
+          };
+        },
+        noteOff() {},
+        dispose() {
+          out.disconnect();
+        }
+      };
+    }
+  },
+
+  marimba: {
+    name: 'Marimba',
+    hue: 96,
+    params: [
+      R('decay', 'Decay', 0.08, 2, 0.45, 0.01, 's'),
+      R('tone', 'Tone', 0, 1, 0.5),
+      R('tune', 'Tune', -24, 24, 0, 1),
+      R('level', 'Level', 0, 1, 0.7)
+    ],
+    inputs: [],
+    outputs: [{ id: 'out', label: 'Out', kind: 'audio' }],
+    create(engine, mod) {
+      const ctx = engine.ctx;
+      const p = mod.params;
+      const out = ctx.createGain();
+      out.gain.value = p.level;
+      // A marimba bar rings on its fundamental plus a bright fourth-partial
+      // "ping" that dies first. Tone sets how much of that ping is heard.
+      const PARTIALS = [1, 4, 9.2];
+
+      return {
+        inputs: {},
+        outputs: { out },
+        setParam(key) {
+          if (key === 'level') out.gain.setTargetAtTime(p.level, ctx.currentTime, 0.02);
+        },
+        noteOn(midi, time, vel = 1) {
+          const t = Math.max(safeTime(time), ctx.currentTime);
+          const len = Math.max(0.08, p.decay);
+          const base = clampHz(midiToFreq(midi) * Math.pow(2, (p.tune || 0) / 12));
+          const amp = Math.max(0.02, Math.min(1, vel)) * 0.7;
+          const tone = Math.max(0, Math.min(1, p.tone));
+
+          for (let i = 0; i < PARTIALS.length; i++) {
+            const f = base * PARTIALS[i];
+            if (f > 16000) continue;
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(f, t);
+            // The upper partials ring shorter and quieter.
+            const plen = len * Math.pow(0.42, i);
+            const plevel = amp * Math.pow(tone * 0.6 + 0.4, i) * (i ? 0.45 : 1);
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.linearRampToValueAtTime(plevel, t + 0.003);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + plen);
+            osc.connect(g);
+            g.connect(out);
+            osc.start(t);
+            osc.stop(t + plen + 0.05);
+            osc.onended = () => {
+              try {
+                osc.disconnect();
+                g.disconnect();
+              } catch (e) {
+                /* ignore */
+              }
+            };
+          }
+        },
+        noteOff() {},
+        dispose() {
+          out.disconnect();
+        }
+      };
+    }
+  },
+
+  shaker: {
+    name: 'Shaker',
+    hue: 132,
+    params: [
+      R('decay', 'Decay', 0.03, 0.6, 0.12, 0.01, 's'),
+      R('tone', 'Tone', 0, 1, 0.6),
+      R('level', 'Level', 0, 1, 0.45)
+    ],
+    inputs: [],
+    outputs: [{ id: 'out', label: 'Out', kind: 'audio' }],
+    create(engine, mod) {
+      const ctx = engine.ctx;
+      const p = mod.params;
+      const out = ctx.createGain();
+      out.gain.value = p.level;
+
+      return {
+        inputs: {},
+        outputs: { out },
+        setParam(key) {
+          if (key === 'level') out.gain.setTargetAtTime(p.level, ctx.currentTime, 0.02);
+        },
+        noteOn(midi, time, vel = 1) {
+          const t = Math.max(safeTime(time), ctx.currentTime);
+          const len = Math.max(0.03, p.decay);
+          const tone = Math.max(0, Math.min(1, p.tone));
+          const amp = Math.max(0.02, Math.min(1, vel)) * 0.5;
+
+          // Grains of high filtered noise: the shake, then a lighter one
+          // trailing it a moment later.
+          const grain = (at, gain) => {
+            const src = ctx.createBufferSource();
+            src.buffer = engine.getNoise('white');
+            src.loop = true;
+            const bp = ctx.createBiquadFilter();
+            bp.type = 'bandpass';
+            bp.frequency.value = clampHz(3500 + tone * 5000);
+            bp.Q.value = 1.1;
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.0001, at);
+            g.gain.exponentialRampToValueAtTime(gain, at + 0.008);
+            g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+            src.connect(bp);
+            bp.connect(g);
+            g.connect(out);
+            src.start(at);
+            src.stop(at + len + 0.03);
+            src.onended = () => {
+              try {
+                src.disconnect();
+                bp.disconnect();
+                g.disconnect();
+              } catch (e) {
+                /* ignore */
+              }
+            };
+          };
+
+          grain(t, amp);
+          if (len > 0.06) grain(t + Math.min(len * 0.55, 0.06), amp * 0.55);
+        },
+        noteOff() {},
+        dispose() {
+          out.disconnect();
+        }
+      };
+    }
+  },
+
+  tom: {
+    name: 'Tom',
+    hue: 14,
+    params: [
+      R('tune', 'Tune', -24, 24, 0, 1),
+      R('bend', 'Bend', 0, 24, 7, 0.5, 'st'),
+      R('decay', 'Decay', 0.1, 2, 0.5, 0.01, 's'),
+      R('tone', 'Tone', 0, 1, 0.35),
+      R('level', 'Level', 0, 1, 0.75)
+    ],
+    inputs: [],
+    outputs: [{ id: 'out', label: 'Out', kind: 'audio' }],
+    create(engine, mod) {
+      const ctx = engine.ctx;
+      const p = mod.params;
+      const out = ctx.createGain();
+      out.gain.value = p.level;
+
+      return {
+        inputs: {},
+        outputs: { out },
+        setParam(key) {
+          if (key === 'level') out.gain.setTargetAtTime(p.level, ctx.currentTime, 0.02);
+        },
+        noteOn(midi, time, vel = 1) {
+          const t = Math.max(safeTime(time), ctx.currentTime);
+          const len = Math.max(0.1, p.decay);
+          const base = clampHz(midiToFreq(midi) * Math.pow(2, (p.tune || 0) / 12));
+          const amp = Math.max(0.02, Math.min(1, vel)) * 0.8;
+          const tone = Math.max(0, Math.min(1, p.tone));
+
+          // The head starts above the note and drops onto it, the way a struck
+          // drum's pitch settles.
+          const osc = ctx.createOscillator();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(
+            clampHz(base * Math.pow(2, Math.max(0, p.bend) / 12)),
+            t
+          );
+          osc.frequency.exponentialRampToValueAtTime(base, t + Math.min(0.2, len * 0.5));
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.linearRampToValueAtTime(amp, t + 0.004);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+          osc.connect(g);
+          g.connect(out);
+          osc.start(t);
+          osc.stop(t + len + 0.05);
+          osc.onended = () => {
+            try {
+              osc.disconnect();
+              g.disconnect();
+            } catch (e) {
+              /* ignore */
+            }
+          };
+
+          // The stick on the head: a short burst of low-passed noise.
+          if (tone > 0.01) {
+            const nlen = 0.02 + 0.05 * tone;
+            const src = ctx.createBufferSource();
+            src.buffer = engine.getNoise('white');
+            src.loop = true;
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = clampHz(1200 + tone * 4000);
+            const ng = ctx.createGain();
+            ng.gain.setValueAtTime(0.0001, t);
+            ng.gain.linearRampToValueAtTime(amp * tone * 0.4, t + 0.002);
+            ng.gain.exponentialRampToValueAtTime(0.0001, t + nlen);
+            src.connect(lp);
+            lp.connect(ng);
+            ng.connect(out);
+            src.start(t);
+            src.stop(t + nlen + 0.03);
+            src.onended = () => {
+              try {
+                src.disconnect();
+                lp.disconnect();
+                ng.disconnect();
+              } catch (e) {
+                /* ignore */
+              }
+            };
+          }
+        },
+        noteOff() {},
+        dispose() {
+          out.disconnect();
+        }
+      };
+    }
+  },
+
+  crash: {
+    name: 'Crash',
+    hue: 232,
+    params: [
+      R('decay', 'Decay', 0.3, 6, 2.2, 0.01, 's'),
+      R('tone', 'Tone', 0, 1, 0.65),
+      R('level', 'Level', 0, 1, 0.45)
+    ],
+    inputs: [],
+    outputs: [{ id: 'out', label: 'Out', kind: 'audio' }],
+    create(engine, mod) {
+      const ctx = engine.ctx;
+      const p = mod.params;
+      const out = ctx.createGain();
+      out.gain.value = p.level;
+
+      return {
+        inputs: {},
+        outputs: { out },
+        setParam(key) {
+          if (key === 'level') out.gain.setTargetAtTime(p.level, ctx.currentTime, 0.02);
+        },
+        noteOn(midi, time, vel = 1) {
+          const t = Math.max(safeTime(time), ctx.currentTime);
+          const len = Math.max(0.3, p.decay);
+          const tone = Math.max(0, Math.min(1, p.tone));
+          const amp = Math.max(0.02, Math.min(1, vel)) * 0.45;
+
+          // A band of bright noise for the body of the crash, and a second,
+          // brighter one that splashes on top and dies first.
+          const layer = (at, gain, type, freq, q, length) => {
+            const src = ctx.createBufferSource();
+            src.buffer = engine.getNoise('white');
+            src.loop = true;
+            const f = ctx.createBiquadFilter();
+            f.type = type;
+            f.frequency.value = clampHz(freq);
+            f.Q.value = q;
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.0001, at);
+            g.gain.linearRampToValueAtTime(gain, at + 0.004);
+            g.gain.exponentialRampToValueAtTime(0.0001, at + length);
+            src.connect(f);
+            f.connect(g);
+            g.connect(out);
+            src.start(at);
+            src.stop(at + length + 0.05);
+            src.onended = () => {
+              try {
+                src.disconnect();
+                f.disconnect();
+                g.disconnect();
+              } catch (e) {
+                /* ignore */
+              }
+            };
+          };
+
+          layer(t, amp, 'highpass', 2500 + tone * 4500, 0.6, len);
+          layer(t, amp * 0.55, 'bandpass', 6000 + tone * 6000, 1.4, len * 0.35);
+        },
+        noteOff() {},
+        dispose() {
+          out.disconnect();
+        }
+      };
+    }
+  },
+
+  chord: {
+    name: 'Chord',
+    hue: 278,
+    params: [
+      SEL('chord', 'Chord', [
+        ['major', 'Major'],
+        ['minor', 'Minor'],
+        ['sus4', 'Sus4'],
+        ['maj7', 'Maj7'],
+        ['min7', 'Min7'],
+        ['power', 'Power']
+      ], 'minor'),
+      R('spread', 'Spread', 0, 0.2, 0.05, 0.005, 's'),
+      R('decay', 'Decay', 0.1, 4, 0.9, 0.01, 's'),
+      R('tone', 'Tone', 0, 1, 0.45),
+      R('tune', 'Tune', -24, 24, 0, 1),
+      R('level', 'Level', 0, 1, 0.45)
+    ],
+    inputs: [],
+    outputs: [{ id: 'out', label: 'Out', kind: 'audio' }],
+    create(engine, mod) {
+      const ctx = engine.ctx;
+      const p = mod.params;
+      const out = ctx.createGain();
+      out.gain.value = p.level;
+      // Semitone steps of each chord, from the note played.
+      const CHORDS = {
+        major: [0, 4, 7, 12],
+        minor: [0, 3, 7, 12],
+        sus4: [0, 5, 7, 12],
+        maj7: [0, 4, 7, 11],
+        min7: [0, 3, 7, 10],
+        power: [0, 7, 12, 19]
+      };
+
+      return {
+        inputs: {},
+        outputs: { out },
+        setParam(key) {
+          if (key === 'level') out.gain.setTargetAtTime(p.level, ctx.currentTime, 0.02);
+        },
+        noteOn(midi, time, vel = 1) {
+          const t = Math.max(safeTime(time), ctx.currentTime);
+          const len = Math.max(0.1, p.decay);
+          const base = clampHz(midiToFreq(midi) * Math.pow(2, (p.tune || 0) / 12));
+          const amp = Math.max(0.02, Math.min(1, vel)) * 0.25;
+          const steps = CHORDS[p.chord] || CHORDS.minor;
+          const tone = Math.max(0, Math.min(1, p.tone));
+
+          // The notes are strummed rather than hit together: one after another
+          // across Spread seconds.
+          const gap = steps.length > 1 ? Math.max(0, p.spread) / (steps.length - 1) : 0;
+          for (let i = 0; i < steps.length; i++) {
+            const at = t + i * gap;
+            const osc = ctx.createOscillator();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(clampHz(base * Math.pow(2, steps[i] / 12)), at);
+            const lp = ctx.createBiquadFilter();
+            lp.type = 'lowpass';
+            lp.frequency.value = clampHz(700 + tone * 11000);
+            lp.Q.value = 0.7;
+            const g = ctx.createGain();
+            g.gain.setValueAtTime(0.0001, at);
+            g.gain.linearRampToValueAtTime(amp, at + 0.006);
+            g.gain.exponentialRampToValueAtTime(0.0001, at + len);
+            osc.connect(lp);
+            lp.connect(g);
+            g.connect(out);
+            osc.start(at);
+            osc.stop(at + len + 0.05);
+            osc.onended = () => {
+              try {
+                osc.disconnect();
+                lp.disconnect();
+                g.disconnect();
+              } catch (e) {
+                /* ignore */
+              }
+            };
+          }
+        },
+        noteOff() {},
+        dispose() {
+          out.disconnect();
+        }
+      };
+    }
+  },
+
+  downlifter: {
+    name: 'Downlifter',
+    hue: 316,
+    params: [
+      L('time', 'Time', 0.2, 8, 1.6, 's'),
+      L('from', 'From', 80, 6000, 5000, 'hz'),
+      L('to', 'To', 80, 12000, 250, 'hz'),
+      R('q', 'Q', 1, 20, 4, 0.5),
+      R('tone', 'Tone', 0, 1, 0.35),
+      R('level', 'Level', 0, 1, 0.7)
+    ],
+    inputs: [],
+    outputs: [{ id: 'out', label: 'Out', kind: 'audio' }],
+    create(engine, mod) {
+      const ctx = engine.ctx;
+      const p = mod.params;
+      const out = ctx.createGain();
+      out.gain.value = p.level;
+
+      return {
+        inputs: {},
+        outputs: { out },
+        setParam(key) {
+          if (key === 'level') out.gain.setTargetAtTime(p.level, ctx.currentTime, 0.02);
+        },
+        noteOn(midi, time, vel = 1) {
+          const t = Math.max(safeTime(time), ctx.currentTime);
+          const len = Math.max(0.15, p.time);
+          // A narrow band passes little of the noise, so a high Q needs more
+          // gain to stay as loud as a wide one.
+          const amp = Math.max(0.02, vel) * 1.2 * Math.sqrt(Math.max(1, p.q));
+          const hi = clampHz(Math.max(p.from, p.to));
+          const lo = clampHz(Math.min(p.from, p.to));
+
+          // The Riser played backwards: a band of noise falling from high to
+          // low, for drops and transitions.
+          const src = ctx.createBufferSource();
+          src.buffer = engine.getNoise('white');
+          src.loop = true;
+          const bp = ctx.createBiquadFilter();
+          bp.type = 'bandpass';
+          bp.Q.value = p.q;
+          bp.frequency.setValueAtTime(hi, t);
+          bp.frequency.exponentialRampToValueAtTime(lo, t + len);
+
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0.0001, t);
+          g.gain.exponentialRampToValueAtTime(amp, t + 0.05);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + len);
+
+          src.connect(bp);
+          bp.connect(g);
+          g.connect(out);
+          src.start(t);
+          src.stop(t + len + 0.05);
+          src.onended = () => {
+            try {
+              src.disconnect();
+              bp.disconnect();
+              g.disconnect();
+            } catch (e) {
+              /* ignore */
+            }
+          };
+
+          // Tone adds a sine following the sweep down, the "pew" under the
+          // noise.
+          if (p.tone > 0.01) {
+            const osc = ctx.createOscillator();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(clampHz(hi * 0.6), t);
+            osc.frequency.exponentialRampToValueAtTime(clampHz(lo * 1.5), t + len);
+            const tg = ctx.createGain();
+            tg.gain.setValueAtTime(0.0001, t);
+            tg.gain.exponentialRampToValueAtTime(amp * 0.25 * p.tone, t + 0.04);
+            tg.gain.exponentialRampToValueAtTime(0.0001, t + len);
+            osc.connect(tg);
+            tg.connect(out);
+            osc.start(t);
+            osc.stop(t + len + 0.05);
+            osc.onended = () => {
+              try {
+                osc.disconnect();
+                tg.disconnect();
+              } catch (e) {
+                /* ignore */
+              }
+            };
+          }
+        },
+        noteOff() {},
+        dispose() {
+          out.disconnect();
+        }
+      };
+    }
+  },
+
   pluck: {
     name: 'Pluck',
     hue: 45,
@@ -4600,7 +5168,9 @@ export const DEFS = {
   output: {
     name: 'Output',
     hue: 0,
-    params: [R('level', 'Level', 0, 1, 0.8)],
+    // No trim by default: the Output is the last thing before the master
+    // limiter, so a level below 1 only threw away part of the patch's level.
+    params: [R('level', 'Level', 0, 1, 1)],
     inputs: [{ id: 'in', label: 'In', kind: 'audio' }],
     outputs: [],
     create(engine, mod) {
@@ -4624,6 +5194,92 @@ export const DEFS = {
     }
   }
 };
+
+// What each module is for, and the colour that says so ----------------------
+//
+// The picker lists the rack under these headings, and every module takes its
+// group's hue for its card, its ports and its box in the patch view, so the
+// colour alone tells you what a module does. `words` are what the picker's
+// search looks through, so "osc", "gen", "fx", "seq" and plain synonyms reach a
+// whole family rather than only the modules whose description happens to use
+// the word.
+export const MODULE_GROUPS = [
+  {
+    id: 'osc',
+    label: 'Oscillators',
+    hue: 200,
+    words: 'osc oscillator synth synthesiser voice tone pitch lead drone sound source',
+    types: ['vco', 'harmonic', 'sync', 'metal', 'chip', 'supersaw', 'fmosc', 'pulse', 'wavetable', 'vox']
+  },
+  {
+    id: 'source',
+    label: 'Sound generators',
+    hue: 35,
+    words: 'source sound instrument sample noise string gen generator texture',
+    types: ['noise', 'sampler', 'pluck']
+  },
+  {
+    id: 'gen',
+    label: 'Sound effects',
+    hue: 315,
+    words: 'gen generator sfx one-shot percussion hit drum effect fx',
+    types: [
+      'drum', 'zap', 'riser', 'clang', 'boom', 'blip', 'ping', 'siren', 'whistle', 'glass',
+      'splash', 'bounce', 'sparkle', 'thunder', 'subdrop', 'clap', 'cowbell', 'boing', 'buzz',
+      'tweet', 'glitch', 'bell', 'marimba', 'shaker', 'tom', 'crash', 'chord', 'downlifter'
+    ]
+  },
+  {
+    id: 'filter',
+    label: 'Filters & tone',
+    hue: 275,
+    words: 'filter filt tone shape eq equaliser frequency resonance fx effect processor',
+    types: ['vcf', 'comb', 'vowel', 'eq']
+  },
+  {
+    id: 'fx',
+    label: 'Effects',
+    hue: 175,
+    words: 'fx effect processor distortion shape reverb echo chorus space drive grit',
+    types: ['chorus', 'phaser', 'delay', 'reverb', 'drive', 'crusher', 'ringmod', 'folder', 'octaver', 'trance']
+  },
+  {
+    id: 'level',
+    label: 'Level & dynamics',
+    hue: 240,
+    words: 'level volume amp gain mix master output comp dynamics loud quiet',
+    types: ['vca', 'comp', 'mixer', 'output']
+  },
+  {
+    id: 'mod',
+    label: 'Modulation',
+    hue: 130,
+    words: 'cv control voltage modulation mod env envelope glide lfo random slew',
+    types: ['adsr', 'lfo', 'random', 'slew', 'atten', 'transpose', 'cvmix']
+  },
+  {
+    id: 'seq',
+    label: 'Sequencing',
+    hue: 60,
+    words: 'seq sequencer step pattern rhythm arpeggio trigger clock tempo gate',
+    types: ['seq', 'turing', 'arp', 'clock']
+  },
+  {
+    id: 'util',
+    label: 'Utility',
+    hue: 10,
+    words: 'utility util routing split scope visual multiple',
+    types: ['multiple', 'scope']
+  }
+];
+
+// A module's own hue is only a fallback for one a group does not list: the
+// group's colour always wins, so colour never disagrees with the heading.
+for (const group of MODULE_GROUPS) {
+  for (const type of group.types) {
+    if (DEFS[type]) DEFS[type].hue = group.hue;
+  }
+}
 
 export function defaultParams(type) {
   const def = DEFS[type];
@@ -4691,6 +5347,13 @@ export const MODULE_INFO = {
   buzz: 'Buzz — a game-show buzzer: a gritty square an octave below the note, held for Time.',
   tweet: 'Tweet — bird chirps: Chirps quick upward sweeps of Sweep semitones. Birds sit an octave above the note played.',
   glitch: 'Glitch — a broken machine: random steps of pitch gated on and off for Time. Density fills in the gaps.',
+  bell: 'Bell — a tuned FM bell: Ratio picks the modulator pitch and Index how bright and long the strike is, then Decay lets it ring out.',
+  marimba: 'Marimba — a wooden mallet: a sine fundamental with a short, bright fourth-partial ping. Tone sets how much of the ping is heard, Decay how long the bar rings.',
+  shaker: 'Shaker — a quick grain of high filtered noise, with a second lighter one trailing it. Tone sets how bright the grain is, Decay how long it lasts.',
+  tom: 'Tom — a pitched drum: Bend sets how far above the note the hit starts before dropping onto it, Tone adds the stick and Decay how long it rings.',
+  crash: 'Crash — a cymbal: a long band of bright noise with a second splash on top that dies first. Tone makes the crash brighter, Decay how long it rings out.',
+  chord: 'Chord — a strummed chord from the note played: Chord picks Major, Minor, Sus4, Maj7, Min7 or Power, Spread how far apart the notes are strummed, and Decay how long the stab rings.',
+  downlifter: 'Downlifter — the Riser played backwards: a band of noise falling from From to To, for drops and transitions. Q focuses it, Tone adds a sine following it down.',
   pluck: 'Pluck — a plucked string: a short burst of noise sets a delay line ringing, so every key sounds a string. Damp turns it from a bright guitar into a soft nylon, Decay sets how long it rings, and its Pitch input takes CV from a Sequencer, Turing or Arp.',
   vowel: 'Vowel — a formant filter: three resonant bands tuned to A, E, I, O or U, so whatever is patched in talks and sings. Shift moves the whole voice, and Morph CV sweeps the vowels from an LFO or an envelope.',
   octaver: 'Octaver — folds the wave up so an octave above the input appears under it. Amount sets how much of that joins in, Tone keeps it from getting harsh.',

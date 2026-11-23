@@ -1,9 +1,9 @@
 // The patch bay: module cards, ports, patch cables and drag interactions.
 
-import { DEFS } from './modules.js';
-import { app, getModule, removeCable, addCable } from './app.js';
-import { autoConnectModule } from './autopatch.js';
-import { decodeSampleFile } from './decode-audio.js';
+import { DEFS } from './modules.js?v=12';
+import { app, getModule, removeCable, addCable } from './app.js?v=12';
+import { autoConnectModule } from './autopatch.js?v=12';
+import { decodeSampleFile } from './decode-audio.js?v=12';
 
 const CARD_W = 215;
 const BOARD_PAD = 90;
@@ -47,6 +47,12 @@ export function rebuildCards() {
   for (const mod of app.state.modules) addCard(mod);
   updateBoardSize();
   updateRackHint();
+  // A preset swap or a cleared rack starts a fresh view: keeping the old scroll
+  // offset can leave the empty-rack hint or the first card out of sight.
+  if (rackEl) {
+    rackEl.scrollTop = 0;
+    rackEl.scrollLeft = 0;
+  }
   scheduleCables();
 }
 
@@ -134,6 +140,30 @@ export function updateSampleName(id) {
   if (!mod || !card) return;
   const nameEl = card.querySelector('.sample-name');
   if (nameEl) nameEl.textContent = (mod.data && mod.data.name) || 'no sample';
+}
+
+// Put one control on a card back to the value its module's params now hold, for
+// a change this page made itself rather than one the player dragged — the
+// Sampler's root note and loop, say, when a fresh take is loaded.
+export function updateParamControl(id, key) {
+  if (!boardEl) return;
+  const mod = getModule(id);
+  const card = boardEl.querySelector(`.card[data-id="${id}"]`);
+  if (!mod || !card) return;
+  const def = DEFS[mod.type];
+  const pd = def && def.params.find((p) => p.key === key);
+  if (!pd) return;
+
+  const value = mod.params[key];
+  const el = card.querySelector(`.p[data-key="${key}"]`);
+  if (el) {
+    if (pd.type === 'toggle') el.checked = !!value;
+    else if (pd.type === 'select') el.value = String(value);
+    else if (pd.type === 'logrange') el.value = String(valueToSlider(value, pd));
+    else el.value = String(value);
+  }
+  const label = card.querySelector(`.val[data-val="${key}"]`);
+  if (label) label.textContent = formatValue(pd, value);
 }
 
 function portHTML(mod, p, role) {
@@ -313,6 +343,17 @@ export function revealModule(id) {
 }
 
 export function deleteModule(id) {
+  // The Output is the only module that reaches the speakers, so removing the
+  // last one would leave the whole rack silent with nothing to say why. Keep it
+  // and say so instead.
+  const mod = app.state.modules.find((m) => m.id === id);
+  if (mod && mod.type === 'output') {
+    const otherOutputs = app.state.modules.filter((m) => m.id !== id && m.type === 'output');
+    if (!otherOutputs.length) {
+      app.toast('A rack needs its Output — it is the only module that reaches the speakers');
+      return;
+    }
+  }
   for (const c of app.state.cables.filter((c) => c.from.id === id || c.to.id === id)) {
     removeCable(c.id);
   }
@@ -392,6 +433,113 @@ function renderCables() {
 }
 
 // Patch view ----------------------------------------------------------------
+
+const SVG_NS = 'http://www.w3.org/2000/svg';
+const MAP_MIN_ZOOM = 0.5;
+const MAP_MAX_ZOOM = 6;
+const MAP_TAP_SLOP = 8;
+// How far past the edge of the map a drag may go, as a share of the view, so
+// the map can be nudged about even before it has been zoomed in.
+const MAP_SLACK = 0.15;
+
+let mapSvg = null;
+let mapLayer = null;
+let mapZoom = 1;
+let mapPanX = 0;
+let mapPanY = 0;
+let mapGesture = null;
+let mapOnPick = null;
+const mapPointers = new Map();
+
+function clampNum(v, lo, hi) {
+  return Math.min(Math.max(v, lo), hi);
+}
+
+// Everything the map draws lives in one <g>, so panning and zooming is a single
+// transform on it and the drawing itself never has to be redone.
+function mapLayerEl(svg) {
+  let layer = svg.querySelector('.map-layer');
+  if (!layer) {
+    layer = document.createElementNS(SVG_NS, 'g');
+    layer.setAttribute('class', 'map-layer');
+    svg.appendChild(layer);
+  }
+  return layer;
+}
+
+function mapViewBox() {
+  if (!mapSvg) return null;
+  const parts = (mapSvg.getAttribute('viewBox') || '').trim().split(/[\s,]+/).map(Number);
+  if (parts.length !== 4 || !parts.every(Number.isFinite)) return null;
+  const [x, y, w, h] = parts;
+  if (!(w > 0) || !(h > 0)) return null;
+  return { x, y, w, h, right: x + w, bottom: y + h };
+}
+
+// Where a finger is in the map's own coordinates. The viewBox can be letterboxed
+// on a screen of another shape, so ask the SVG rather than scaling by hand.
+function mapPointFromClient(clientX, clientY) {
+  if (!mapSvg) return { x: 0, y: 0 };
+  const screen = mapSvg.getScreenCTM();
+  if (!screen) return { x: 0, y: 0 };
+  const p = new DOMPoint(clientX, clientY).matrixTransform(screen.inverse());
+  return { x: p.x, y: p.y };
+}
+
+// Keep the map over the view: zoomed in, its edges may not come inside the
+// view; zoomed out, the whole map stays within it.
+function clampMapPan() {
+  const vb = mapViewBox();
+  if (!vb) return;
+  const slackX = vb.w * MAP_SLACK;
+  const slackY = vb.h * MAP_SLACK;
+  const ax = vb.x * (1 - mapZoom);
+  const bx = vb.right * (1 - mapZoom);
+  const ay = vb.y * (1 - mapZoom);
+  const by = vb.bottom * (1 - mapZoom);
+  mapPanX = clampNum(mapPanX, Math.min(ax, bx) - slackX, Math.max(ax, bx) + slackX);
+  mapPanY = clampNum(mapPanY, Math.min(ay, by) - slackY, Math.max(ay, by) + slackY);
+}
+
+function applyMapTransform() {
+  if (!mapLayer) return;
+  mapLayer.setAttribute(
+    'transform',
+    'translate(' + mapPanX.toFixed(2) + ' ' + mapPanY.toFixed(2) + ') scale(' + mapZoom.toFixed(4) + ')'
+  );
+}
+
+// Zoom, keeping whatever is under the anchor point where it is.
+function setMapZoom(zoom, anchor) {
+  const vb = mapViewBox();
+  if (!vb) return;
+  const next = clampNum(zoom, MAP_MIN_ZOOM, MAP_MAX_ZOOM);
+  if (Math.abs(next - mapZoom) < 0.0001) return;
+  const a = anchor || { x: vb.x + vb.w / 2, y: vb.y + vb.h / 2 };
+  const cx = (a.x - mapPanX) / mapZoom;
+  const cy = (a.y - mapPanY) / mapZoom;
+  mapZoom = next;
+  mapPanX = a.x - cx * next;
+  mapPanY = a.y - cy * next;
+  clampMapPan();
+  applyMapTransform();
+}
+
+// Put the whole patch back on screen at once, as the view opens.
+export function fitPatchMap() {
+  mapZoom = 1;
+  mapPanX = 0;
+  mapPanY = 0;
+  // A fresh view starts with no half-finished gesture from the last one.
+  mapPointers.clear();
+  mapGesture = null;
+  if (mapSvg) mapSvg.classList.remove('grabbing');
+  applyMapTransform();
+}
+
+export function zoomPatchMap(factor) {
+  setMapZoom(mapZoom * factor, null);
+}
 
 // A full-screen map of the whole patch: every card, its ports and every cable,
 // fitted to the screen. It is measured from the live cards, so the map matches
@@ -473,8 +621,148 @@ export function renderPatchMap(svg) {
     markup += '</g>';
   }
 
-  svg.innerHTML = markup;
+  mapSvg = svg;
+  mapLayer = mapLayerEl(svg);
+  mapLayer.innerHTML = markup;
+  fitPatchMap();
   return { modules: boxes.length, cables };
+}
+
+// Moving around: one finger drags the map, two pinch it, the wheel zooms it on
+// a computer, and Fit puts the whole patch back on screen. A tap that does not
+// drag jumps to the module's card instead.
+function onMapPointerDown(e) {
+  if (!mapSvg) return;
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  e.preventDefault();
+
+  try {
+    mapSvg.setPointerCapture(e.pointerId);
+  } catch (err) {
+    // A pointer that is already gone cannot be captured; dragging still works.
+  }
+
+  const point = { x: e.clientX, y: e.clientY };
+  mapPointers.set(e.pointerId, point);
+
+  if (mapPointers.size === 1) {
+    const el = e.target && e.target.closest ? e.target.closest('.map-module') : null;
+    mapGesture = {
+      kind: 'pan',
+      pick: el ? el.getAttribute('data-module') : null,
+      moved: 0
+    };
+    mapSvg.classList.add('grabbing');
+  } else if (mapPointers.size === 2) {
+    const [a, b] = Array.from(mapPointers.values());
+    mapGesture = {
+      kind: 'pinch',
+      pick: null,
+      dist: Math.hypot(a.x - b.x, a.y - b.y) || 1,
+      center: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }
+    };
+    mapSvg.classList.add('grabbing');
+  }
+}
+
+function onMapPointerMove(e) {
+  if (!mapPointers.has(e.pointerId) || !mapGesture) return;
+
+  const prev = mapPointers.get(e.pointerId);
+  const now = { x: e.clientX, y: e.clientY };
+  mapPointers.set(e.pointerId, now);
+
+  if (mapGesture.kind === 'pan') {
+    const from = mapPointFromClient(prev.x, prev.y);
+    const to = mapPointFromClient(now.x, now.y);
+    mapPanX += to.x - from.x;
+    mapPanY += to.y - from.y;
+    mapGesture.moved += Math.hypot(now.x - prev.x, now.y - prev.y);
+    clampMapPan();
+    applyMapTransform();
+    return;
+  }
+
+  if (mapGesture.kind === 'pinch' && mapPointers.size >= 2) {
+    const [a, b] = Array.from(mapPointers.values());
+    const dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    const center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+
+    // Slide with the midpoint first, then zoom around it, so the two fingers
+    // keep hold of the same part of the patch as they spread or close.
+    const from = mapPointFromClient(mapGesture.center.x, mapGesture.center.y);
+    const to = mapPointFromClient(center.x, center.y);
+    mapPanX += to.x - from.x;
+    mapPanY += to.y - from.y;
+    clampMapPan();
+    applyMapTransform();
+
+    const factor = dist / mapGesture.dist;
+    mapGesture.dist = dist;
+    mapGesture.center = center;
+    setMapZoom(mapZoom * factor, mapPointFromClient(center.x, center.y));
+  }
+}
+
+function onMapPointerUp(e) {
+  if (!mapPointers.has(e.pointerId)) return;
+  mapPointers.delete(e.pointerId);
+
+  try {
+    if (mapSvg && mapSvg.hasPointerCapture && mapSvg.hasPointerCapture(e.pointerId)) {
+      mapSvg.releasePointerCapture(e.pointerId);
+    }
+  } catch (err) {
+    // The capture went with the pointer.
+  }
+
+  const gesture = mapGesture;
+  if (!gesture) return;
+
+  if (mapPointers.size === 0) {
+    mapGesture = null;
+    if (mapSvg) mapSvg.classList.remove('grabbing');
+    if (e.type === 'pointerup' && gesture.kind === 'pan' && gesture.moved <= MAP_TAP_SLOP && gesture.pick) {
+      const pick = gesture.pick;
+      if (mapOnPick) mapOnPick(pick);
+    }
+    return;
+  }
+
+  // One finger came off a pinch: carry on panning with the one left.
+  if (mapPointers.size === 1) {
+    mapGesture = { kind: 'pan', pick: null, moved: Infinity };
+    return;
+  }
+
+  // Still two or more down: measure the pinch again from the fingers that are
+  // left, so a finger joining or leaving does not make the map jump.
+  if (mapGesture.kind === 'pinch' && mapPointers.size >= 2) {
+    const [a, b] = Array.from(mapPointers.values());
+    mapGesture.dist = Math.hypot(a.x - b.x, a.y - b.y) || 1;
+    mapGesture.center = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+  }
+}
+
+function onMapWheel(e) {
+  if (!mapSvg) return;
+  e.preventDefault();
+  const anchor = mapPointFromClient(e.clientX, e.clientY);
+  setMapZoom(mapZoom * Math.exp(-e.deltaY * 0.0015), anchor);
+}
+
+// Wire the map once. onPick gets a module id when its box is tapped.
+export function initPatchMap(onPick) {
+  const svg = document.getElementById('patch-map');
+  if (!svg) return;
+  mapSvg = svg;
+  mapLayer = mapLayerEl(svg);
+  mapOnPick = typeof onPick === 'function' ? onPick : null;
+  svg.addEventListener('pointerdown', onMapPointerDown);
+  svg.addEventListener('pointermove', onMapPointerMove);
+  svg.addEventListener('pointerup', onMapPointerUp);
+  svg.addEventListener('pointercancel', onMapPointerUp);
+  svg.addEventListener('wheel', onMapWheel, { passive: false });
 }
 
 function onCableClick(e) {
