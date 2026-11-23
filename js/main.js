@@ -271,6 +271,13 @@ function initAudio() {
     setAudioSession('playback');
     holdAudioSession();
     app.ctx = new AC({ latencyHint: 'interactive' });
+    // The title card's tune plays through this context too, rather than through
+    // one of its own: a phone will not start a context made as the page loaded,
+    // and a card with a second one was silent while the rack played. js/splash.js
+    // finds it here — this listener runs in the capture phase of the same tap
+    // that touches the card, so it is built and running by the time the card
+    // asks.
+    window.patchBayAudio = app.ctx;
     // A saved rack that lost its Output would build a silent engine: give it
     // one before the graph is made, so the keys and the demo tune are heard.
     if (app.state.modules.length) ensureOutput();
@@ -290,6 +297,7 @@ function initAudio() {
     }
     app.ctx = null;
     app.engine = null;
+    window.patchBayAudio = null;
     toast('Could not start the audio engine');
     return;
   }

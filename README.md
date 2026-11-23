@@ -133,7 +133,10 @@ finger, octave buttons, and `a w s e d f t g y h u j k` on a computer keyboard.
 The first tap, key or click anywhere in the page switches the audio on: browsers
 will not let a page make sound before one, and Chrome keeps a context started
 before it suspended — silent — so nothing is built until the player touches the
-page. **Start audio** in the toolbar does the same by hand. The rack's own
+page. **Start audio** in the toolbar does the same by hand. The title card's tune
+is played through that same context rather than through one of its own — a
+context made as the page loads never starts on a phone — so it leaves the page by
+the route the rack is heard by. The rack's own
 output is lifted to full scale by a master stage that follows the rack's level:
 the drive is set from the patch's measured peak, so its peaks land just under
 full scale, and a fixed soft top rounds whatever overshoots that, before a final

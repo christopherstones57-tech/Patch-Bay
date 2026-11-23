@@ -75,16 +75,26 @@
   //
   // Five bell notes climbing to the octave, then the chord they came from: a
   // couple of seconds, small enough to be heard out on the way in. It is written
-  // here rather than played through the synth because the rack's engine is still
-  // being built while the card is up.
+  // here rather than played through the synth because the sound has to be there
+  // whatever the state of the rack.
   //
   // It is wanted as the card arrives, not only when the card is tapped, so it is
   // asked for at once. A browser will not start a page's sound before the page
   // has been touched, and leaves the context suspended until it is: the tune is
   // then played on the first tap or key, which is the same gesture that starts
-  // the app itself. Either way it is heard once — but only from a context made
-  // inside that gesture, so one that never started is thrown away and rebuilt
-  // (see startTune).
+  // the app itself. Either way it is heard once.
+  //
+  // Where it is heard from matters as much as when. It plays through the same
+  // AudioContext as the synth whenever that one exists — js/main.js builds it in
+  // the page's first gesture, before this file's own handler for that tap runs,
+  // and leaves it on window.patchBayAudio to be found (see rackAudio). What used
+  // to go wrong was a second context of the tune's own, made as the page loaded:
+  // a phone keeps such a one suspended however often it is asked, so the card
+  // was silent while the rack, on the context the tap built, played. One context
+  // for the page means the tune leaves by the same route as everything else. A
+  // tune asked for when there is no rack context yet — a browser that lets a
+  // page play as it loads, or a tap that arrives before main.js has run — builds
+  // one of its own, and it is thrown away if it never starts.
   const ARPEGGIO = [
     [0.0, 523.25, 0.55, 0.5],
     [0.1, 659.25, 0.55, 0.5],
@@ -96,9 +106,19 @@
   // One time through, from the first note to the chord's tail.
   const PASS = 2.4;
 
-  let tuneCtx = null;
-  let tuneOut = null;
+  let tuneCtx = null; // the context the tune plays through
+  let tuneOwn = false; // true when this file built it, so it may close it
+  let tuneOut = null; // the gain every note of the tune is joined to
+  let tuneAir = null; // the filter the tune leaves its context by
   let tuneStarted = false;
+
+  // The context js/main.js built for the rack, once it has. It is never closed
+  // here: the synth plays on it.
+  function rackAudio() {
+    const ctx = window.patchBayAudio;
+    if (!ctx || ctx.state === 'closed' || !ctx.destination) return null;
+    return ctx;
+  }
 
   // The tune is heard on the phone's media playback session rather than the
   // quiet ambient one a page's own Web Audio is given by default: the ambient
@@ -116,15 +136,21 @@
   }
 
   function tuneAudio() {
-    if (tuneCtx) return tuneCtx;
-    claimPlaybackSession();
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return null;
-    let ctx = null;
-    try {
-      ctx = new Ctx();
-    } catch (e) {
-      return null;
+    if (tuneCtx && tuneCtx.state !== 'closed') return tuneCtx;
+    // The rack's context when the tap has already built it, so the tune is heard
+    // the way the synth is heard rather than on a context of its own.
+    let ctx = rackAudio();
+    let own = false;
+    if (!ctx) {
+      claimPlaybackSession();
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return null;
+      try {
+        ctx = new Ctx();
+      } catch (e) {
+        return null;
+      }
+      own = true;
     }
     const master = ctx.createGain();
     master.gain.value = 0.3;
@@ -136,7 +162,9 @@
     master.connect(air);
     air.connect(ctx.destination);
     tuneCtx = ctx;
+    tuneOwn = own;
     tuneOut = master;
+    tuneAir = air;
     return ctx;
   }
 
@@ -175,9 +203,26 @@
 
   function closeTune() {
     const ctx = tuneCtx;
+    const own = tuneOwn;
+    const master = tuneOut;
+    const air = tuneAir;
     tuneCtx = null;
+    tuneOwn = false;
     tuneOut = null;
-    if (!ctx) return;
+    tuneAir = null;
+    try {
+      if (master) master.disconnect();
+    } catch (e) {
+      /* already gone */
+    }
+    try {
+      if (air) air.disconnect();
+    } catch (e) {
+      /* already gone */
+    }
+    // The rack's context is the app's and is played on long after the tune: only
+    // one this file built is closed.
+    if (!own || !ctx) return;
     try {
       ctx.close();
     } catch (e) {
@@ -201,37 +246,54 @@
     window.setTimeout(closeTune, (PASS * 2 + 1.6) * 1000);
   }
 
+  // Play as soon as the context says it is running. One built inside the tap
+  // starts at once and is heard straight away; the rack's, which the same tap has
+  // just asked main.js to start, says so a moment later.
+  function whenRunning(ctx, play) {
+    if (!ctx) return;
+    if (ctx.state === 'running') {
+      play();
+      return;
+    }
+    if (!ctx.addEventListener) return;
+    let answered = false;
+    const onState = () => {
+      if (answered || ctx.state !== 'running') return;
+      answered = true;
+      ctx.removeEventListener('statechange', onState);
+      if (tuneCtx === ctx) play();
+    };
+    ctx.addEventListener('statechange', onState);
+    // Asking again is what a browser waiting for the gesture answers, and it
+    // costs nothing where the context is already on its way up.
+    try {
+      const asked = ctx.resume && ctx.resume();
+      if (asked && asked.catch) asked.catch(() => {});
+    } catch (e) {
+      /* the statechange listener above is the only answer left */
+    }
+    // Nothing came of it: stop listening, and let the next gesture have it.
+    window.setTimeout(() => {
+      if (answered) return;
+      answered = true;
+      ctx.removeEventListener('statechange', onState);
+    }, 4000);
+  }
+
   function startTune() {
     if (tuneStarted || !card.parentNode) return;
     if (card.classList.contains('splash-out')) return;
     claimPlaybackSession();
-    const ctx = tuneAudio();
-    if (!ctx) return;
-    if (ctx.state === 'running') {
-      scheduleTune();
-      return;
-    }
-    // No resume at all: this context can never be started, so the next gesture
-    // is left to build one that can.
-    if (!ctx.resume) {
-      closeTune();
-      return;
-    }
-    // Made inside a tap this is allowed at once; asked for as the page loads it
-    // may only be answered when the page is first touched — and on iOS a context
-    // made before that touch can stay suspended however often it is asked, which
-    // is heard as a card that never plays its tune. A context that does not
-    // start is closed, so the gesture that follows builds one of its own.
-    try {
-      const asked = ctx.resume();
-      if (asked && asked.then) {
-        asked.then(scheduleTune, closeTune);
-      } else if (ctx.state !== 'running') {
-        closeTune();
-      }
-    } catch (e) {
-      closeTune();
-    }
+    // A context of this file's own that the browser never started is thrown away
+    // rather than asked again: a phone can keep one made before the page was
+    // touched suspended however often it is asked. Built here, inside the tap, it
+    // is one the browser will start — or, with main.js already up, the tune
+    // simply takes the rack's (see tuneAudio).
+    if (tuneCtx && tuneOwn && tuneCtx.state !== 'running') closeTune();
+
+    if (!tuneCtx || tuneCtx.state === 'closed') tuneAudio();
+    if (!tuneCtx) return;
+    whenRunning(tuneCtx, scheduleTune);
   }
 
   startTune();
