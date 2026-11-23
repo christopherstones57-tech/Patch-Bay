@@ -376,15 +376,14 @@ with FreeMilk" badge in the corner of the page. Nothing in the app depends on it
 the files are the whole site, so any host that serves them over https as they are
 will do — no build step, no server, no database.
 
-**GitHub Pages**, from the repository that already holds it:
-`.github/workflows/pages.yml` publishes the files as they are on every push to
-`main`, and turns Pages on the first time it runs, so the app is at
-`https://<user>.github.io/Patch-Bay/` a minute after that first push. Pages serves
-a site from a folder rather than from a host's root, which is why every path in
-the page is relative — nothing has to change. To publish from the branch instead
-of from the workflow, set Settings → Pages → Source "Deploy from a branch", branch
-`main`, folder `/ (root)`, and delete the workflow. A private repository needs a
-paid plan for Pages either way; this one is public.
+**GitHub Pages**, from the repository that already holds it: Settings → Pages →
+Source "Deploy from a branch", branch `main`, folder `/ (root)`, Save. That one
+switch is the repository's to give — no file in it can turn Pages on, since GitHub
+reserves that for an administrator — and a minute later the app is at
+`https://<user>.github.io/Patch-Bay/`, publishing again on every push to `main`.
+Pages serves a site from a folder rather than from a host's root, which is why
+every path in the page is relative — nothing has to change. A private repository
+needs a paid plan for Pages; this one is public.
 
 **itch.io**, which the splash card already names: Dashboard → Create new project,
 kind of project HTML, and upload one zip whose top level is `index.html`, `css/`
