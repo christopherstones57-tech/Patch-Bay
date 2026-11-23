@@ -23,9 +23,18 @@
 <meta property="og:title" content="Patch Bay — a 72-module synth that runs in your browser">
 <meta property="og:description" content="Drag real patch cables, record five parts, sing over them, export a WAV. Free, no install, works on a phone.">
 <meta name="twitter:card" content="summary">
+<!-- What a shared link shows: the app's own mark, as a PNG, because no chat, search
+     engine or social site will draw an SVG in a card. A square picture is cropped
+     to the card's shape around its middle, which is where the sockets are. -->
+<meta property="og:image" content="https://christopherstones57-tech.github.io/Patch-Bay/favicon.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:alt" content="Two jack sockets on a dark rack panel, joined by a glowing patch cable.">
+<meta name="twitter:image" content="https://christopherstones57-tech.github.io/Patch-Bay/favicon.png">
 <link rel="canonical" href="https://christopherstones57-tech.github.io/Patch-Bay/">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="css/app.css?v=19">
+<link rel="stylesheet" href="css/app.css?v=20">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
 <!-- The card that stands in front of the app while the rack is built: the
@@ -60,6 +69,10 @@
         <span class="viewer-stat" id="viewer-users-stat" hidden><b id="viewer-users">0</b><i id="viewer-users-label">users</i></span>
         <span class="viewer-stat" id="viewer-views-stat" hidden><b id="viewer-views">0</b><i id="viewer-views-label">views</i></span>
       </div>
+      <!-- The one way out of the instrument: the page that says what it is. One
+           word at the end of the title row, small enough that the tune's name
+           keeps its room — and the only link a search engine can follow here. -->
+      <a class="about-link" href="./ad.html" title="What Patch Bay is, in one page">About</a>
     </div>
     <div class="bar-row">
       <button id="btn-start" class="primary" type="button">Start audio</button>

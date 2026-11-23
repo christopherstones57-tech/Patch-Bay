@@ -1,0 +1,12 @@
+# Patch Bay — a page of static files. Everything here may be read and indexed.
+#
+# One thing worth knowing: on GitHub Pages a repository serves from a folder
+# (…/Patch-Bay/), not from the root of the address, and a crawler only reads a
+# robots.txt that sits at the root. So this file is the record of what the site
+# wants rather than the thing that gives a crawler its orders: the sitemap below
+# is also worth handing to Google Search Console and Bing directly.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://christopherstones57-tech.github.io/Patch-Bay/sitemap.xml
