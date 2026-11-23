@@ -1413,7 +1413,23 @@ function wireToolbar() {
   wireSongFile();
 }
 
+// The instrument is laid out to exactly the height of the screen it is in, rather
+// than to a guess at it: on a phone the address bar and the toolbar come and go,
+// and a page laid out to the wrong height stretches the rack over the room the
+// transport and the keys should have had, leaving them just past the bottom of
+// the screen. The height itself lives in css/app.css, which reads --app-h and
+// falls back to the viewport units until this has run.
+function fitAppToScreen() {
+  const h = Math.round(window.innerHeight || 0);
+  if (h > 0) document.documentElement.style.setProperty('--app-h', h + 'px');
+}
+
 function init() {
+  fitAppToScreen();
+  window.addEventListener('resize', fitAppToScreen);
+  window.addEventListener('orientationchange', fitAppToScreen);
+  window.addEventListener('pageshow', fitAppToScreen);
+
   // Bring the rack up before anything draws it: always the default patch, with
   // every module at its original settings.
   initRack();

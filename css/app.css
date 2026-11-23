@@ -21,6 +21,11 @@
 html, body {
   margin: 0;
   height: 100%;
+  /* The instrument is the whole of the page, so the page itself never scrolls:
+     what scrolls is the rack, and the sheets laid over it. A page that can
+     scroll is a page that slides the transport and the keys off the bottom of a
+     phone's screen. */
+  overflow: hidden;
   /* Two pools of light behind the panels, so the dark edges of the page read as
      depth rather than as one flat black. */
   background:
@@ -36,8 +41,17 @@ html, body {
 #app {
   display: flex;
   flex-direction: column;
+  /* Exactly as tall as the screen the browser is showing. On a phone the address
+     bar and the toolbar come and go, and a page laid out to a guessed height
+     leaves the transport and the keys just past the bottom of the screen with
+     the rack stretched over the room they should have had: js/main.js measures
+     the window into --app-h and this follows it. The viewport units are what the
+     first frame uses, before that measurement has arrived. Only the rack inside
+     gives when the two bars above and below it want more room, so the options
+     and the keys are always on screen. */
   height: 100vh;
   height: 100dvh;
+  height: var(--app-h, 100dvh);
   overflow: hidden;
 }
 
@@ -52,6 +66,9 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* The bars keep the height their wrapped rows need; it is the rack between
+     them that gives, so nothing here is ever cut off the screen. */
+  flex: 0 0 auto;
 }
 
 .bar-row {
@@ -1081,6 +1098,9 @@ body:has(> freemilk-badge) .patch-view-hint {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* As the toolbar above: the transport keeps the height of its rows and its
+     keys, and the rack gives instead. */
+  flex: 0 0 auto;
 }
 
 /* A published FreeMilk page carries a fixed "Made with FreeMilk" badge in the
@@ -1092,30 +1112,27 @@ body:has(> freemilk-badge) #transport {
 }
 
 /* A window too short for the whole instrument — a phone whose browser is at its
-   shortest, or a window on a computer — cannot hold the toolbar, the transport
-   and the rack at once. The two bars are as tall as their wrapped rows and the
-   rack is the only row that can give, so it was squeezed to nothing: an empty
-   band where the patch should be, and no way to scroll it. Below this height
-   both bars keep a share of the screen and scroll inside themselves instead,
-   the keys lose a little height, and the rack always keeps a quarter of it. */
+   shortest, or a short window on a computer — cannot hold the toolbar, the
+   transport and the rack at once. The rack is the one that gives: it keeps
+   whatever the two bars above and below it leave, however little, and scrolls
+   inside that, so the transport's buttons and the keys stay on screen instead of
+   sitting inside a bar that has to be scrolled to reach them. The bars are
+   tightened here and the keys lose a little height, which leaves the rack a strip
+   worth patching in; only a window too short even for that lets a bar shrink and
+   scroll inside itself. */
 @media (max-height: 620px) {
-  #topbar {
-    flex: 0 1 auto;
-    max-height: 34vh;
-    max-height: 34dvh;
-    overflow-y: auto;
-  }
+  #topbar,
   #transport {
     flex: 0 1 auto;
-    max-height: 42vh;
-    max-height: 42dvh;
     overflow-y: auto;
   }
-  #rack {
-    flex: 1 1 auto;
-    min-height: 24vh;
-    min-height: 24dvh;
-  }
+  #topbar .bar-row { gap: 4px; }
+  #topbar button { font-size: 10px; padding: 5px 7px; }
+  #transport .bar-row { gap: 4px; }
+  #transport .bar-row button { font-size: 10px; padding: 5px 7px; }
+  /* The knobs are not transport buttons: their own padding is what shapes the
+     dial, so the tighter button rule above is left off them. */
+  #transport .bar-row .knob { padding: 2px 5px 0; font-size: 11px; }
   /* The keys are sized further down the file, so this is written against the
      keybed itself rather than the bare class, to be sure it wins. */
   #keyboard-wrap .keys { height: 76px; }
