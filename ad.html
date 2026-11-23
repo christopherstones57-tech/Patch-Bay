@@ -13,6 +13,10 @@
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Patch Bay — a 72-module synth in your browser">
 <meta name="twitter:description" content="72 modules, real cables, five channels and a lyric track. Free, nothing to install.">
+<link rel="canonical" href="https://christopherstones57-tech.github.io/Patch-Bay/ad.html">
+<!-- Two ports, joined: the page's mark, drawn inline so the ad stays one file
+     with nothing to load and nothing to break. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230b0f16'/%3E%3Cpath d='M11 16 Q16 6 21 16' fill='none' stroke='%235ce1e6' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='11' cy='16' r='3.6' fill='%230b0f16' stroke='%235ce1e6' stroke-width='2.2'/%3E%3Ccircle cx='21' cy='16' r='3.6' fill='%230b0f16' stroke='%23b06bd0' stroke-width='2.2'/%3E%3C/svg%3E">
 <!-- The page that sells the app: one file, no build step, no dependencies. Every
      link to the synth is ./index.html so it works on any host that serves the
      folder as it is — FreeMilk, GitHub Pages, itch.io, or a phone on a laptop's
@@ -33,7 +37,12 @@
 
 * { box-sizing: border-box; }
 
-html { scroll-behavior: smooth; }
+html {
+  scroll-behavior: smooth;
+  /* The header is sticky, so a jump to #inside has to leave room for it: without
+     this the section's own heading lands underneath the bar. */
+  scroll-padding-top: calc(72px + env(safe-area-inset-top));
+}
 
 body {
   margin: 0;
@@ -107,6 +116,8 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 .btn:active { transform: scale(0.98); }
+.btn:disabled { opacity: 0.5; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 @media (hover: hover) {
   .btn:hover { background: linear-gradient(#2b3346, #1e2431); border-color: #3a4459; }
 }
@@ -122,6 +133,11 @@ body {
 }
 .btn.small { font-size: 12px; padding: 8px 13px; }
 .btn .tri { font-size: 11px; color: var(--accent); }
+.btn.primary.on {
+  background: linear-gradient(#12504f, #0e3a3c);
+  border-color: #3d99a0;
+  color: var(--accent);
+}
 
 /* Hero ------------------------------------------------------------------- */
 
@@ -179,6 +195,39 @@ h1 .sub em { color: var(--lyric); font-style: normal; }
   margin: 14px 0 0;
   font-size: 11px;
   letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6f788b;
+}
+
+/* The numbers the whole pitch rests on ----------------------------------- */
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  gap: 10px;
+  margin: clamp(20px, 4vw, 28px) 0 0;
+  padding: 0;
+  list-style: none;
+}
+.facts li {
+  padding: 10px 12px 9px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(#141924, #0e1219);
+  text-align: center;
+}
+.facts b {
+  display: block;
+  font-size: 21px;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  color: var(--accent);
+}
+.facts span {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #6f788b;
 }
@@ -254,6 +303,27 @@ h1 .sub em { color: var(--lyric); font-style: normal; }
   color: #6f788b;
 }
 
+/* Hear it ---------------------------------------------------------------- */
+
+.hear {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 14px 20px;
+  margin: clamp(24px, 5vw, 34px) 0 0;
+  padding: clamp(16px, 4vw, 22px);
+  border: 1px solid #2b666b;
+  border-radius: 14px;
+  background:
+    radial-gradient(520px 220px at 50% 0%, var(--accent-soft), transparent 72%),
+    linear-gradient(#111a22, #0b1118);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 18px 40px -30px #000;
+}
+.hear .btn { font-size: 15px; padding: 13px 22px; min-width: 150px; }
+.hear p { margin: 0; max-width: 430px; font-size: 12.5px; line-height: 1.55; color: var(--muted); }
+.hear p a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-soft); }
+
 /* Sections --------------------------------------------------------------- */
 
 section { padding: clamp(34px, 7vw, 62px) 0 0; }
@@ -313,6 +383,97 @@ h2 .num {
 }
 .tile p { margin: 0; font-size: 13px; color: var(--muted); }
 
+/* Every module, by group ------------------------------------------------- */
+
+.groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 12px;
+}
+.group {
+  padding: 14px 16px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(#151a23, #10141b);
+}
+.group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: hsl(var(--h) 66% 76%);
+}
+.group h3 .dot {
+  flex: 0 0 auto;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: hsl(var(--h) 85% 62%);
+  box-shadow: 0 0 9px hsl(var(--h) 85% 62%);
+}
+.group h3 .count {
+  margin-left: auto;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: #5b6478;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.chips li {
+  padding: 3px 9px 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #d3dbea;
+  background: hsl(var(--h) 38% 15%);
+  border: 1px solid hsl(var(--h) 44% 30%);
+  border-radius: 20px;
+}
+.chips.accent {
+  --h: 190;
+}
+.chips.accent li {
+  background: rgba(92, 225, 230, 0.08);
+  border-color: rgba(92, 225, 230, 0.32);
+  color: #c6f4f7;
+}
+
+/* Sounds you start from -------------------------------------------------- */
+
+.two {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 12px;
+}
+.panel {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(#151a23, #10141b);
+}
+.panel h3 {
+  margin: 0 0 3px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #dfe6f3;
+}
+.panel .small { margin: 0 0 13px; font-size: 12.5px; color: var(--muted); }
+
+.tunes { display: flex; flex-direction: column; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.tunes li {
+  padding: 9px 11px;
+  border: 1px solid #232a37;
+  border-radius: 10px;
+  background: #0d1118;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #b9c2d2;
+}
+.tunes b { display: block; color: var(--accent); font-size: 12px; letter-spacing: 0.05em; }
+.tunes span { color: var(--muted); }
+
 /* Three steps ------------------------------------------------------------ */
 
 .steps {
@@ -345,6 +506,124 @@ h2 .num {
   opacity: 0.65;
 }
 .steps strong { color: var(--text); }
+
+/* What it looks like ----------------------------------------------------- */
+
+.shots {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+}
+.shot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0;
+  padding: 16px 14px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: linear-gradient(#10141c, #0b0e15 70%, #090c11);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 20px 44px -34px #000;
+  overflow: hidden;
+}
+.shot svg { display: block; width: 100%; max-width: 300px; height: auto; }
+/* The mockup's labels are centred on the thing they name. The few that are not
+   — the tune name, the patch view's own header — carry a text-anchor of their
+   own and keep it, so this only reaches the ones that mean "centred". */
+.shot svg text:not([text-anchor]) { text-anchor: middle; }
+.shot figcaption {
+  font-size: 10px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: #6f788b;
+  text-align: center;
+  line-height: 1.5;
+}
+
+/* The visualiser, drawn the way the app draws it: a ring of spectrum around a
+   glowing core, turning slowly. */
+.viz {
+  position: relative;
+  width: min(100%, 220px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  margin: 4px 0;
+}
+.viz i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: repeating-conic-gradient(from 0deg, rgba(92, 225, 230, 0.95) 0deg 1.3deg, transparent 1.3deg 5.6deg);
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 44%, #000 45% 72%, transparent 73%);
+  mask: radial-gradient(circle at 50% 50%, transparent 0 44%, #000 45% 72%, transparent 73%);
+  filter: drop-shadow(0 0 9px rgba(92, 225, 230, 0.5));
+  animation: turn 24s linear infinite;
+}
+.viz i + i {
+  inset: 17%;
+  background: repeating-conic-gradient(from 2deg, rgba(176, 107, 208, 0.9) 0deg 1.1deg, transparent 1.1deg 8.5deg);
+  -webkit-mask: radial-gradient(circle at 50% 50%, transparent 0 52%, #000 53% 82%, transparent 83%);
+  mask: radial-gradient(circle at 50% 50%, transparent 0 52%, #000 53% 82%, transparent 83%);
+  filter: drop-shadow(0 0 8px rgba(176, 107, 208, 0.45));
+  animation: turn 38s linear infinite reverse;
+}
+.viz b {
+  width: 34%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(92, 225, 230, 0.85), rgba(92, 225, 230, 0.16) 46%, transparent 68%),
+    radial-gradient(circle, rgba(176, 107, 208, 0.3), transparent 72%);
+  filter: blur(3px);
+}
+@keyframes turn { to { transform: rotate(360deg); } }
+
+/* Honest limits ---------------------------------------------------------- */
+
+.notes {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(268px, 1fr));
+  gap: 12px;
+}
+.note {
+  padding: 15px 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #0e121a;
+}
+.note h3 {
+  margin: 0 0 7px;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.note p { margin: 0; font-size: 12.5px; color: var(--muted); }
+
+/* Questions -------------------------------------------------------------- */
+
+.faq { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+.faq details {
+  padding: 11px 15px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #0e121a;
+}
+.faq summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #dfe6f3;
+  list-style: none;
+}
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::before { content: "+ "; color: var(--accent); }
+.faq details[open] summary::before { content: "- "; }
+.faq p { margin: 9px 0 0; font-size: 12.5px; color: var(--muted); }
+.faq a { color: var(--accent); text-decoration: none; border-bottom: 1px solid var(--accent-soft); }
+.faq strong { color: #c3cbdb; font-weight: 600; }
 
 /* Sharing ---------------------------------------------------------------- */
 
@@ -403,6 +682,7 @@ footer a:hover { color: var(--accent); border-color: var(--accent); }
   html { scroll-behavior: auto; }
   .rack .cable { animation: none; stroke-dasharray: none; }
   .rack .card { animation: none; }
+  .viz i { animation: none; }
   .btn { transition: none; }
 }
 </style>
@@ -428,12 +708,19 @@ footer a:hover { color: var(--accent); border-color: var(--accent); }
         <span class="mark">Patch Bay</span>
         <span class="sub">A 72-module modular synth you patch with real cables — and record on, <em>straight from the page</em>.</span>
       </h1>
-      <p class="lede">Oscillators, filters, drum synths, sequencers and effects on a rack you can rewire with a finger. Four note channels and a lyric track, 30 presets, five demo tunes, and a mix you can export as a WAV. One tap and you are playing.</p>
+      <p class="lede">Oscillators, filters, drum and sound-effect generators, sequencers and effects on a rack you can rewire with a finger. Four note channels and a lyric track, 30 presets, five demo tunes, and a mix you can export as a WAV. One tap and you are playing.</p>
       <div class="cta-row">
         <a class="btn primary" href="./index.html"><span class="tri">▶</span> Play Patch Bay</a>
         <a class="btn" href="#inside">See what is in it</a>
       </div>
       <p class="fineprint">No sign-up · works on iPhone, iPad and laptop</p>
+
+      <ul class="facts">
+        <li><b>72</b><span>modules</span></li>
+        <li><b>5</b><span>channels</span></li>
+        <li><b>30</b><span>presets</span></li>
+        <li><b>0</b><span>to install</span></li>
+      </ul>
 
       <div class="rack-wrap">
         <svg class="rack" viewBox="0 0 760 300" role="img" aria-labelledby="rack-title">
@@ -545,6 +832,16 @@ footer a:hover { color: var(--accent); border-color: var(--accent); }
       </div>
     </section>
 
+    <!-- A few seconds of sound made in this page rather than downloaded: the same
+         Web Audio API the synth is built on, and the browser's own rule that
+         nothing may play before a tap. -->
+    <div class="hear">
+      <button class="btn primary" id="hear-btn" type="button" aria-label="Play a short demo">
+        <span class="tri" id="hear-icon">▶</span> <span id="hear-label">Hear it</span>
+      </button>
+      <p id="hear-note">Four bars played live by this page — an oscillator pair, a filter, an echo and a drum under it. This is not a recording: it is the same Web Audio API Patch Bay is built on. The real thing has 72 modules.</p>
+    </div>
+
     <section id="inside">
       <h2><span class="num">What is in it</span>A rack that grows with what you want to do</h2>
       <p class="section-lede">Patch Bay is not one preset behind glass. Every module is yours to add, place and wire, and the rack you build records and exports like any other instrument.</p>
@@ -553,7 +850,7 @@ footer a:hover { color: var(--accent); border-color: var(--accent); }
         <div class="tile" style="--h:200">
           <span class="num">01</span>
           <h3>72 modules</h3>
-          <p>Ten oscillators, filters, ten effects, twenty-eight one-shot sound generators, sequencers, a Turing machine, a Karplus-Strong pluck and a talking formant filter.</p>
+          <p>Ten oscillators, twenty-eight one-shot sound generators, filters, effects, sequencers, a Turing machine, a Karplus-Strong pluck and a talking formant filter.</p>
         </div>
         <div class="tile" style="--h:175">
           <span class="num">02</span>
@@ -567,28 +864,142 @@ footer a:hover { color: var(--accent); border-color: var(--accent); }
         </div>
         <div class="tile" style="--h:60">
           <span class="num">04</span>
-          <h3>Five channels</h3>
-          <p>Record four parts, each with the rack it was made on, then sing over them on channel five. Play them back together, mix them down, loop them.</p>
+          <h3>Five channels, five racks</h3>
+          <p>Record four parts, each keeping the rack it was made on. Change the rack afterwards and the parts you already played still sound as they did.</p>
         </div>
-        <div class="tile" style="--h:275">
+        <div class="tile" style="--h:285">
           <span class="num">05</span>
+          <h3>Sing over it</h3>
+          <p>Channel five records the microphone: your voice on the same clock as the notes, mixed into every export, with a count-in whose clicks never land in the take.</p>
+        </div>
+        <div class="tile" style="--h:60">
+          <span class="num">06</span>
           <h3>Presets and demo tunes</h3>
-          <p>Thirty built-in sounds from acid bass to ambient pad, five demo pieces that each load the rack they were written for, and your own patches saved on the device.</p>
+          <p>Thirty built-in sounds from acid bass to ambient pad, five demo pieces that each load the rack they were written for, and your own patches kept on the device.</p>
+        </div>
+        <div class="tile" style="--h:20">
+          <span class="num">07</span>
+          <h3>A take on the grid</h3>
+          <p>A bar of count-in, a click you never hear in the mix, quantise to the sixteenth, loop, and a knob per channel measured in decibels so the balance is a real one.</p>
         </div>
         <div class="tile" style="--h:10">
-          <span class="num">06</span>
+          <span class="num">08</span>
           <h3>Files that leave</h3>
-          <p>Mix to WAV or FLAC, or capture OGG. Save a song file and everything comes back — the notes, every channel's rack, and the voice take.</p>
+          <p>Mix to WAV or FLAC, or capture OGG. Save a song file and everything comes back — the notes, every channel's rack and the voice take.</p>
         </div>
         <div class="tile" style="--h:240">
-          <span class="num">07</span>
+          <span class="num">09</span>
           <h3>A visualiser</h3>
           <p>One button turns the output into a full-screen ring of spectrum, waveform and particles — with a keyboard along the bottom, so you can play it while it runs.</p>
         </div>
         <div class="tile" style="--h:130">
-          <span class="num">08</span>
+          <span class="num">10</span>
           <h3>Nothing to install</h3>
           <p>No app store, no account, no download. It is a web page on the Web Audio API, so it runs the same on a phone as on a laptop.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="modules">
+      <h2><span class="num">The whole instrument</span>Every module, in the colour it wears on the rack</h2>
+      <p class="section-lede">Nine families, seventy-two modules. Each family has its own colour, and every module takes it on its card, its ports and its box in the patch view — so colour alone tells you what a module does.</p>
+
+      <div class="groups">
+        <div class="group" style="--h:200">
+          <h3><i class="dot"></i>Oscillators<span class="count">10</span></h3>
+          <ul class="chips">
+            <li>VCO</li><li>Harmonic</li><li>Sync</li><li>Metal</li><li>Chip</li>
+            <li>Super Saw</li><li>FM Osc</li><li>Pulse</li><li>Wavetable</li><li>Vox</li>
+          </ul>
+        </div>
+        <div class="group" style="--h:35">
+          <h3><i class="dot"></i>Sound generators<span class="count">3</span></h3>
+          <ul class="chips">
+            <li>Noise</li><li>Sampler</li><li>Pluck</li>
+          </ul>
+        </div>
+        <div class="group" style="--h:315">
+          <h3><i class="dot"></i>Sound effects<span class="count">28</span></h3>
+          <ul class="chips">
+            <li>Drum</li><li>Zap</li><li>Riser</li><li>Clang</li><li>Boom</li><li>Blip</li><li>Ping</li>
+            <li>Siren</li><li>Whistle</li><li>Glass</li><li>Splash</li><li>Bounce</li><li>Sparkle</li>
+            <li>Thunder</li><li>Sub Drop</li><li>Clap</li><li>Cowbell</li><li>Boing</li><li>Buzz</li>
+            <li>Tweet</li><li>Glitch</li><li>Bell</li><li>Marimba</li><li>Shaker</li><li>Tom</li>
+            <li>Crash</li><li>Chord</li><li>Downlifter</li>
+          </ul>
+        </div>
+        <div class="group" style="--h:275">
+          <h3><i class="dot"></i>Filters &amp; tone<span class="count">4</span></h3>
+          <ul class="chips">
+            <li>VCF</li><li>Comb</li><li>Vowel</li><li>EQ</li>
+          </ul>
+        </div>
+        <div class="group" style="--h:175">
+          <h3><i class="dot"></i>Effects<span class="count">10</span></h3>
+          <ul class="chips">
+            <li>Chorus</li><li>Phaser</li><li>Delay</li><li>Reverb</li><li>Drive</li>
+            <li>Crusher</li><li>Ring Mod</li><li>Wavefolder</li><li>Octaver</li><li>Trance Gate</li>
+          </ul>
+        </div>
+        <div class="group" style="--h:240">
+          <h3><i class="dot"></i>Level &amp; dynamics<span class="count">4</span></h3>
+          <ul class="chips">
+            <li>VCA</li><li>Compressor</li><li>Mixer</li><li>Output</li>
+          </ul>
+        </div>
+        <div class="group" style="--h:130">
+          <h3><i class="dot"></i>Modulation<span class="count">7</span></h3>
+          <ul class="chips">
+            <li>ADSR</li><li>LFO</li><li>Random</li><li>Slew</li>
+            <li>Attenuverter</li><li>Transpose</li><li>CV Mixer</li>
+          </ul>
+        </div>
+        <div class="group" style="--h:60">
+          <h3><i class="dot"></i>Sequencing<span class="count">4</span></h3>
+          <ul class="chips">
+            <li>Sequencer</li><li>Turing</li><li>Arp</li><li>Clock</li>
+          </ul>
+        </div>
+        <div class="group" style="--h:10">
+          <h3><i class="dot"></i>Utility<span class="count">2</span></h3>
+          <ul class="chips">
+            <li>Multiple</li><li>Scope</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="section-lede" style="margin-top:18px">A module you add patches itself in: one with a <strong>Pitch</strong> output wires into every oscillator that takes CV, and one with a <strong>Gate</strong> output opens the VCA. Or wire it by hand, port to port — and tap a cable to pull it out.</p>
+    </section>
+
+    <section id="sounds">
+      <h2><span class="num">Sounds you start from</span>Thirty presets and five demo tunes</h2>
+      <p class="section-lede">Tap a preset and the whole rack is replaced — modules, positions, settings, cables, tempo and level. Tap a demo tune and the rack it was written for arrives with it.</p>
+
+      <div class="two">
+        <div class="panel">
+          <h3>Built-in presets</h3>
+          <p class="small">Thirty sounds that cover the synth rather than repeat it.</p>
+          <ul class="chips accent">
+            <li>Classic lead</li><li>Acid bass</li><li>Ambient pad</li><li>Plucked arp</li>
+            <li>Drum machine</li><li>Chiptune lead</li><li>Sub bass</li><li>Wobble bass</li>
+            <li>Glass keys</li><li>Bell keys</li><li>Pipe organ</li><li>Drone</li>
+            <li>Ring bells</li><li>Fold lead</li><li>Comb pluck</li><li>Chip bass</li>
+            <li>Echo flute</li><li>Sync scream</li><li>String pad</li><li>Wooden mallet</li>
+            <li>Metal hit</li><li>FM bell</li><li>Pulse lead</li><li>Wavetable keys</li>
+            <li>Vox choir</li><li>Noise sweep</li><li>Buzz bass</li><li>Siren lead</li>
+            <li>Glitch machine</li><li>Studio lead</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>Demo tunes</h3>
+          <p class="small">Five pieces, each on a rack of its own — the list is also a tour.</p>
+          <ul class="tunes">
+            <li><b>Neon lead</b><span>A saw through a resonant filter into a delay.</span></li>
+            <li><b>Velvet pad</b><span>A seven-voice super saw through chorus and a long reverb.</span></li>
+            <li><b>Arcade run</b><span>A chip pulse with a short slap, eight notes to the bar.</span></li>
+            <li><b>Rubber bass</b><span>A square an octave down through a tight filter and drive.</span></li>
+            <li><b>Plucked garden</b><span>Karplus-Strong strings in a slow delay and a big room.</span></li>
+          </ul>
         </div>
       </div>
     </section>
@@ -601,6 +1012,299 @@ footer a:hover { color: var(--accent); border-color: var(--accent); }
         <li><strong>Wire something up.</strong> Open <strong>+ Add module</strong>, add a Delay or a Pluck, then drag from one port to another. Press <strong>Auto-patch</strong> if the rack goes quiet and let it rewire itself.</li>
         <li><strong>Make a track.</strong> Pick channel 1, tap <strong>Rec</strong>, play the keys. Add a part on channel 2, sing on channel 5, then <strong>Mix → WAV</strong>. The file downloads to the device.</li>
       </ol>
+    </section>
+
+    <section id="look">
+      <h2><span class="num">What it looks like</span>The instrument, the map and the picture</h2>
+      <p class="section-lede">The rack on a phone, the patch map at a glance, and the visualiser. Everything below is drawn by this page itself — no screenshots to go stale.</p>
+
+      <div class="shots">
+        <figure class="shot">
+          <svg viewBox="0 0 220 440" role="img" aria-labelledby="phone-title">
+            <title id="phone-title">The app on a phone: a toolbar of buttons above a rack of module cards, then the five channels, the transport and the keyboard.</title>
+            <rect x="4" y="4" width="212" height="432" rx="28" fill="#0a0d13" stroke="#2a3040" stroke-width="1.4"></rect>
+            <rect x="12" y="12" width="196" height="416" rx="22" fill="#080b10" stroke="#1b2230"></rect>
+            <!-- toolbar -->
+            <rect x="16" y="18" width="188" height="46" rx="6" fill="#131923" stroke="#242c3a"></rect>
+            <text x="22" y="29" fill="#6f788b" font-size="5.2" text-anchor="start" letter-spacing="1.2">TUNE</text>
+            <text x="22" y="39" fill="#e8ecf5" font-size="7.8" text-anchor="start">Untitled tune</text>
+            <rect x="22" y="44" width="42" height="10" rx="3" fill="#16343a" stroke="#2f7d83"></rect>
+            <text x="43" y="51.5" fill="#b9f6f9" font-size="5">Start audio</text>
+            <rect x="68" y="46" width="30" height="6" rx="3" fill="#0d1219" stroke="#2a3040"></rect>
+            <rect x="69.5" y="47.5" width="20" height="3" rx="1.5" fill="#5ce1e6"></rect>
+            <rect x="102" y="44" width="24" height="10" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="114" y="51.5" fill="#c3cbdb" font-size="5">120</text>
+            <rect x="130" y="44" width="52" height="10" rx="3" fill="#16343a" stroke="#2f7d83"></rect>
+            <text x="156" y="51.5" fill="#b9f6f9" font-size="5">+ Add module</text>
+            <rect x="22" y="57" width="36" height="9" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="40" y="63.5" fill="#c3cbdb" font-size="4.8">Auto-patch</text>
+            <rect x="62" y="57" width="32" height="9" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="78" y="63.5" fill="#c3cbdb" font-size="4.8">Patch view</text>
+            <rect x="98" y="57" width="32" height="9" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="114" y="63.5" fill="#c3cbdb" font-size="4.8">Visualiser</text>
+            <rect x="134" y="57" width="34" height="9" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="151" y="63.5" fill="#c3cbdb" font-size="4.8">Demo tunes</text>
+            <rect x="172" y="57" width="28" height="9" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="186" y="63.5" fill="#c3cbdb" font-size="4.8">Presets</text>
+            <!-- rack -->
+            <rect x="16" y="68" width="188" height="282" fill="#080a0f" stroke="#1b2230"></rect>
+            <g>
+              <rect x="22" y="76" width="84" height="66" rx="6" fill="hsl(60 34% 13%)" stroke="hsl(60 62% 48% / 0.55)"></rect>
+              <rect x="22" y="76" width="84" height="2.5" rx="1.2" fill="hsl(60 78% 58%)"></rect>
+              <text x="64" y="89" fill="#e9eef8" font-size="6.4" letter-spacing="0.6">SEQ</text>
+              <text x="64" y="97" fill="hsl(60 45% 68%)" font-size="4.2">8 steps</text>
+              <circle cx="42" cy="118" r="7" fill="hsl(60 28% 22%)" stroke="hsl(60 62% 58% / 0.7)"></circle>
+              <path d="M42 111 L42 114" stroke="hsl(60 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="66" cy="118" r="7" fill="hsl(60 28% 22%)" stroke="hsl(60 62% 58% / 0.7)"></circle>
+              <path d="M66 111 L66 114" stroke="hsl(60 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="86" cy="118" r="7" fill="hsl(60 28% 22%)" stroke="hsl(60 62% 58% / 0.7)"></circle>
+              <path d="M86 111 L86 114" stroke="hsl(60 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="64" cy="76" r="3.6" fill="#070a0e" stroke="hsl(60 82% 62%)" stroke-width="1.6"></circle>
+            </g>
+            <g>
+              <rect x="114" y="76" width="84" height="66" rx="6" fill="hsl(200 34% 13%)" stroke="hsl(200 62% 48% / 0.55)"></rect>
+              <rect x="114" y="76" width="84" height="2.5" rx="1.2" fill="hsl(200 78% 58%)"></rect>
+              <text x="156" y="89" fill="#e9eef8" font-size="6.4" letter-spacing="0.6">VCO</text>
+              <text x="156" y="97" fill="hsl(200 45% 68%)" font-size="4.2">saw · pulse</text>
+              <circle cx="134" cy="118" r="7" fill="hsl(200 28% 22%)" stroke="hsl(200 62% 58% / 0.7)"></circle>
+              <path d="M134 111 L134 114" stroke="hsl(200 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="158" cy="118" r="7" fill="hsl(200 28% 22%)" stroke="hsl(200 62% 58% / 0.7)"></circle>
+              <path d="M158 111 L158 114" stroke="hsl(200 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="178" cy="118" r="7" fill="hsl(200 28% 22%)" stroke="hsl(200 62% 58% / 0.7)"></circle>
+              <path d="M178 111 L178 114" stroke="hsl(200 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="114" cy="109" r="3.6" fill="#070a0e" stroke="hsl(200 82% 62%)" stroke-width="1.6"></circle>
+              <circle cx="198" cy="109" r="3.6" fill="#070a0e" stroke="hsl(200 82% 62%)" stroke-width="1.6"></circle>
+            </g>
+            <g>
+              <rect x="22" y="150" width="84" height="66" rx="6" fill="hsl(275 34% 13%)" stroke="hsl(275 62% 48% / 0.55)"></rect>
+              <rect x="22" y="150" width="84" height="2.5" rx="1.2" fill="hsl(275 78% 58%)"></rect>
+              <text x="64" y="163" fill="#e9eef8" font-size="6.4" letter-spacing="0.6">VCF</text>
+              <text x="64" y="171" fill="hsl(275 45% 68%)" font-size="4.2">cutoff</text>
+              <circle cx="42" cy="192" r="7" fill="hsl(275 28% 22%)" stroke="hsl(275 62% 58% / 0.7)"></circle>
+              <path d="M42 185 L42 188" stroke="hsl(275 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="66" cy="192" r="7" fill="hsl(275 28% 22%)" stroke="hsl(275 62% 58% / 0.7)"></circle>
+              <path d="M66 185 L66 188" stroke="hsl(275 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="86" cy="192" r="7" fill="hsl(275 28% 22%)" stroke="hsl(275 62% 58% / 0.7)"></circle>
+              <path d="M86 185 L86 188" stroke="hsl(275 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="22" cy="183" r="3.6" fill="#070a0e" stroke="hsl(275 82% 62%)" stroke-width="1.6"></circle>
+              <circle cx="106" cy="183" r="3.6" fill="#070a0e" stroke="hsl(275 82% 62%)" stroke-width="1.6"></circle>
+            </g>
+            <g>
+              <rect x="114" y="150" width="84" height="66" rx="6" fill="hsl(240 34% 13%)" stroke="hsl(240 62% 48% / 0.55)"></rect>
+              <rect x="114" y="150" width="84" height="2.5" rx="1.2" fill="hsl(240 78% 58%)"></rect>
+              <text x="156" y="163" fill="#e9eef8" font-size="6.4" letter-spacing="0.6">VCA</text>
+              <text x="156" y="171" fill="hsl(240 45% 68%)" font-size="4.2">level</text>
+              <circle cx="134" cy="192" r="7" fill="hsl(240 28% 22%)" stroke="hsl(240 62% 58% / 0.7)"></circle>
+              <path d="M134 185 L134 188" stroke="hsl(240 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="158" cy="192" r="7" fill="hsl(240 28% 22%)" stroke="hsl(240 62% 58% / 0.7)"></circle>
+              <path d="M158 185 L158 188" stroke="hsl(240 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="178" cy="192" r="7" fill="hsl(240 28% 22%)" stroke="hsl(240 62% 58% / 0.7)"></circle>
+              <path d="M178 185 L178 188" stroke="hsl(240 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="114" cy="183" r="3.6" fill="#070a0e" stroke="hsl(240 82% 62%)" stroke-width="1.6"></circle>
+              <circle cx="198" cy="183" r="3.6" fill="#070a0e" stroke="hsl(240 82% 62%)" stroke-width="1.6"></circle>
+            </g>
+            <g>
+              <rect x="22" y="224" width="84" height="66" rx="6" fill="hsl(175 34% 13%)" stroke="hsl(175 62% 48% / 0.55)"></rect>
+              <rect x="22" y="224" width="84" height="2.5" rx="1.2" fill="hsl(175 78% 58%)"></rect>
+              <text x="64" y="237" fill="#e9eef8" font-size="6.4" letter-spacing="0.6">DELAY</text>
+              <text x="64" y="245" fill="hsl(175 45% 68%)" font-size="4.2">echo</text>
+              <circle cx="42" cy="266" r="7" fill="hsl(175 28% 22%)" stroke="hsl(175 62% 58% / 0.7)"></circle>
+              <path d="M42 259 L42 262" stroke="hsl(175 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="66" cy="266" r="7" fill="hsl(175 28% 22%)" stroke="hsl(175 62% 58% / 0.7)"></circle>
+              <path d="M66 259 L66 262" stroke="hsl(175 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="86" cy="266" r="7" fill="hsl(175 28% 22%)" stroke="hsl(175 62% 58% / 0.7)"></circle>
+              <path d="M86 259 L86 262" stroke="hsl(175 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="22" cy="257" r="3.6" fill="#070a0e" stroke="hsl(175 82% 62%)" stroke-width="1.6"></circle>
+              <circle cx="106" cy="257" r="3.6" fill="#070a0e" stroke="hsl(175 82% 62%)" stroke-width="1.6"></circle>
+            </g>
+            <g>
+              <rect x="114" y="224" width="84" height="66" rx="6" fill="hsl(130 34% 13%)" stroke="hsl(130 62% 48% / 0.55)"></rect>
+              <rect x="114" y="224" width="84" height="2.5" rx="1.2" fill="hsl(130 78% 58%)"></rect>
+              <text x="156" y="237" fill="#e9eef8" font-size="6.4" letter-spacing="0.6">LFO</text>
+              <text x="156" y="245" fill="hsl(130 45% 68%)" font-size="4.2">slow mod</text>
+              <circle cx="134" cy="266" r="7" fill="hsl(130 28% 22%)" stroke="hsl(130 62% 58% / 0.7)"></circle>
+              <path d="M134 259 L134 262" stroke="hsl(130 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="158" cy="266" r="7" fill="hsl(130 28% 22%)" stroke="hsl(130 62% 58% / 0.7)"></circle>
+              <path d="M158 259 L158 262" stroke="hsl(130 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="178" cy="266" r="7" fill="hsl(130 28% 22%)" stroke="hsl(130 62% 58% / 0.7)"></circle>
+              <path d="M178 259 L178 262" stroke="hsl(130 70% 70%)" stroke-width="1.1"></path>
+              <circle cx="198" cy="257" r="3.6" fill="#070a0e" stroke="hsl(130 82% 62%)" stroke-width="1.6"></circle>
+            </g>
+            <g>
+              <rect x="22" y="298" width="84" height="44" rx="6" fill="hsl(315 34% 13%)" stroke="hsl(315 62% 48% / 0.55)"></rect>
+              <rect x="22" y="298" width="84" height="2.5" rx="1.2" fill="hsl(315 78% 58%)"></rect>
+              <text x="64" y="311" fill="#e9eef8" font-size="6.4" letter-spacing="0.6">DRUM</text>
+              <text x="64" y="319" fill="hsl(315 45% 68%)" font-size="4.2">one-shot</text>
+              <circle cx="42" cy="330" r="5.4" fill="hsl(315 28% 22%)" stroke="hsl(315 62% 58% / 0.7)"></circle>
+              <circle cx="62" cy="330" r="5.4" fill="hsl(315 28% 22%)" stroke="hsl(315 62% 58% / 0.7)"></circle>
+              <circle cx="82" cy="330" r="5.4" fill="hsl(315 28% 22%)" stroke="hsl(315 62% 58% / 0.7)"></circle>
+            </g>
+            <g>
+              <rect x="114" y="298" width="84" height="44" rx="6" fill="hsl(10 34% 13%)" stroke="hsl(10 62% 48% / 0.55)"></rect>
+              <rect x="114" y="298" width="84" height="2.5" rx="1.2" fill="hsl(10 78% 58%)"></rect>
+              <text x="156" y="311" fill="#e9eef8" font-size="6.4" letter-spacing="0.6">SCOPE</text>
+              <text x="156" y="319" fill="hsl(10 45% 68%)" font-size="4.2">waveform</text>
+              <path d="M122 332 Q128 322 134 332 T146 332 T158 332 T170 332 T182 332 T190 332" fill="none" stroke="hsl(10 72% 66%)" stroke-width="1.1"></path>
+            </g>
+            <!-- the cables, drawn under the cards the way the app draws them -->
+            <path d="M64 76 C68 88 100 96 114 109" fill="none" stroke="#5ce1e6" stroke-width="2" stroke-linecap="round" opacity="0.85"></path>
+            <path d="M198 109 C204 142 160 176 114 183" fill="none" stroke="#5ce1e6" stroke-width="2" stroke-linecap="round" opacity="0.85"></path>
+            <path d="M106 183 C104 214 68 242 22 257" fill="none" stroke="#5ce1e6" stroke-width="2" stroke-linecap="round" opacity="0.85"></path>
+            <path d="M198 257 C204 232 204 208 198 183" fill="none" stroke="#5ce1e6" stroke-width="2" stroke-linecap="round" opacity="0.85"></path>
+            <!-- transport -->
+            <rect x="16" y="350" width="188" height="2" fill="#1c2230"></rect>
+            <rect x="22" y="364" width="16" height="12" rx="3" fill="#5ce1e6" opacity="0.9"></rect>
+            <text x="30" y="372.5" fill="#062024" font-size="5">1</text>
+            <rect x="40" y="364" width="16" height="12" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="48" y="372.5" fill="#c3cbdb" font-size="5">2</text>
+            <rect x="58" y="364" width="16" height="12" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="66" y="372.5" fill="#c3cbdb" font-size="5">3</text>
+            <rect x="76" y="364" width="16" height="12" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="84" y="372.5" fill="#c3cbdb" font-size="5">4</text>
+            <rect x="94" y="364" width="16" height="12" rx="3" fill="#1a1f2b" stroke="#4a3358"></rect>
+            <text x="102" y="372.5" fill="#b06bd0" font-size="5">5</text>
+            <rect x="114" y="364" width="26" height="12" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="127" y="372.5" fill="#c3cbdb" font-size="4.6">Mix</text>
+            <rect x="144" y="364" width="26" height="12" rx="3" fill="#1a1f2b" stroke="#6b3038"></rect>
+            <text x="157" y="372.5" fill="#e3798a" font-size="4.4">● Rec</text>
+            <rect x="174" y="364" width="26" height="12" rx="3" fill="#1a1f2b" stroke="#2a3040"></rect>
+            <text x="187" y="372.5" fill="#c3cbdb" font-size="4.4">▶ Play</text>
+            <!-- channel levels -->
+            <circle cx="30" cy="390" r="6" fill="#1a1f2b" stroke="#3a4459"></circle>
+            <path d="M30 385 L30 387" stroke="#5ce1e6" stroke-width="1.2"></path>
+            <circle cx="54" cy="390" r="6" fill="#1a1f2b" stroke="#3a4459"></circle>
+            <path d="M54 385 L54 387" stroke="#5ce1e6" stroke-width="1.2"></path>
+            <circle cx="78" cy="390" r="6" fill="#1a1f2b" stroke="#3a4459"></circle>
+            <path d="M78 385 L78 387" stroke="#5ce1e6" stroke-width="1.2"></path>
+            <circle cx="102" cy="390" r="6" fill="#1a1f2b" stroke="#3a4459"></circle>
+            <path d="M102 385 L102 387" stroke="#5ce1e6" stroke-width="1.2"></path>
+            <circle cx="126" cy="390" r="6" fill="#1a1f2b" stroke="#4a3358"></circle>
+            <path d="M126 385 L126 387" stroke="#b06bd0" stroke-width="1.2"></path>
+            <rect x="150" y="386" width="48" height="8" rx="4" fill="#0d1219" stroke="#2a3040"></rect>
+            <rect x="152" y="388" width="26" height="4" rx="2" fill="#5ce1e6" opacity="0.8"></rect>
+            <!-- keyboard -->
+            <g>
+              <rect x="22" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="36.4" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="50.8" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="65.2" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="79.6" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="94" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="108.4" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="122.8" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="137.2" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="151.6" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="166" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="180.4" y="402" width="14.4" height="24" rx="2" fill="#dfe6f3" stroke="#1a2130"></rect>
+              <rect x="33.2" y="402" width="8" height="15" rx="1.5" fill="#0e1219"></rect>
+              <rect x="47.6" y="402" width="8" height="15" rx="1.5" fill="#0e1219"></rect>
+              <rect x="76.4" y="402" width="8" height="15" rx="1.5" fill="#0e1219"></rect>
+              <rect x="90.8" y="402" width="8" height="15" rx="1.5" fill="#0e1219"></rect>
+              <rect x="105.2" y="402" width="8" height="15" rx="1.5" fill="#0e1219"></rect>
+              <rect x="134" y="402" width="8" height="15" rx="1.5" fill="#0e1219"></rect>
+              <rect x="148.4" y="402" width="8" height="15" rx="1.5" fill="#0e1219"></rect>
+              <rect x="177.2" y="402" width="8" height="15" rx="1.5" fill="#0e1219"></rect>
+            </g>
+          </svg>
+          <figcaption>The instrument on a phone — toolbar, rack, five channels and the keys</figcaption>
+        </figure>
+
+        <figure class="shot">
+          <svg viewBox="0 0 220 220" role="img" aria-labelledby="map-title">
+            <title id="map-title">The patch view: every module drawn as a box with its cables, small enough to read the whole rack at once.</title>
+            <text x="12" y="16" fill="#8b93a7" font-size="6.4" text-anchor="start" letter-spacing="0.8">PATCH VIEW</text>
+            <text x="208" y="16" fill="#5b6478" font-size="6" text-anchor="end">8 modules · 9 cables</text>
+            <rect x="12" y="24" width="196" height="184" rx="6" fill="#080a0f" stroke="#1b2230"></rect>
+            <path d="M52 56 C70 56 70 56 88 56" fill="none" stroke="#5ce1e6" stroke-width="1.6" stroke-linecap="round" opacity="0.85"></path>
+            <path d="M124 56 C142 56 142 56 160 56" fill="none" stroke="#5ce1e6" stroke-width="1.6" stroke-linecap="round" opacity="0.85"></path>
+            <path d="M52 136 C52 108 88 100 88 56" fill="none" stroke="#5ce1e6" stroke-width="1.6" stroke-linecap="round" opacity="0.85"></path>
+            <path d="M160 136 C160 112 142 96 142 56" fill="none" stroke="#5ce1e6" stroke-width="1.6" stroke-linecap="round" opacity="0.85"></path>
+            <path d="M88 56 C88 84 88 100 88 136" fill="none" stroke="#5ce1e6" stroke-width="1.6" stroke-linecap="round" opacity="0.85"></path>
+            <path d="M124 56 C124 84 150 100 160 136" fill="none" stroke="#5ce1e6" stroke-width="1.6" stroke-linecap="round" opacity="0.85"></path>
+            <rect x="22" y="40" width="30" height="20" rx="3" fill="hsl(60 30% 15%)" stroke="hsl(60 42% 34%)"></rect>
+            <text x="37" y="53" fill="hsl(60 72% 82%)" font-size="5" letter-spacing="0.4">SEQ</text>
+            <rect x="88" y="40" width="36" height="20" rx="3" fill="hsl(200 30% 15%)" stroke="hsl(200 42% 34%)"></rect>
+            <text x="106" y="53" fill="hsl(200 72% 82%)" font-size="5" letter-spacing="0.4">VCO</text>
+            <rect x="160" y="40" width="36" height="20" rx="3" fill="hsl(275 30% 15%)" stroke="hsl(275 42% 34%)"></rect>
+            <text x="178" y="53" fill="hsl(275 72% 82%)" font-size="5" letter-spacing="0.4">VCF</text>
+            <rect x="22" y="136" width="36" height="20" rx="3" fill="hsl(130 30% 15%)" stroke="hsl(130 42% 34%)"></rect>
+            <text x="40" y="149" fill="hsl(130 72% 82%)" font-size="5" letter-spacing="0.4">LFO</text>
+            <rect x="88" y="136" width="40" height="20" rx="3" fill="hsl(240 30% 15%)" stroke="hsl(240 42% 34%)"></rect>
+            <text x="108" y="149" fill="hsl(240 72% 82%)" font-size="5" letter-spacing="0.4">VCA</text>
+            <rect x="160" y="136" width="36" height="20" rx="3" fill="hsl(175 30% 15%)" stroke="hsl(175 42% 34%)"></rect>
+            <text x="178" y="149" fill="hsl(175 72% 82%)" font-size="5" letter-spacing="0.4">DLY</text>
+            <rect x="88" y="88" width="40" height="20" rx="3" fill="hsl(240 30% 15%)" stroke="hsl(240 42% 34%)"></rect>
+            <text x="108" y="101" fill="hsl(240 72% 82%)" font-size="5" letter-spacing="0.4">OUT</text>
+            <rect x="160" y="88" width="36" height="20" rx="3" fill="hsl(130 30% 15%)" stroke="hsl(130 42% 34%)"></rect>
+            <text x="178" y="101" fill="hsl(130 72% 82%)" font-size="5" letter-spacing="0.4">ADSR</text>
+            <text x="110" y="188" fill="#5b6478" font-size="6" text-anchor="middle">drag to move · pinch to zoom · tap a module</text>
+          </svg>
+          <figcaption>Patch view — the whole rack drawn to fit one screen</figcaption>
+        </figure>
+
+        <figure class="shot">
+          <div class="viz" role="img" aria-label="The visualiser: a ring of spectrum bars around a glowing core.">
+            <i></i><i></i><b></b>
+          </div>
+          <figcaption>The visualiser — spectrum, waveform and particles, with a keyboard under it</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section id="honest">
+      <h2><span class="num">Before you tap</span>What it needs, and what it is not</h2>
+      <div class="notes">
+        <div class="note">
+          <h3>What it needs</h3>
+          <p>A browser that can play Web Audio — Safari, Chrome, Edge or Firefox, on a phone, a tablet or a computer. Headphones or a speaker. Nothing else: no account, no install, no plugin.</p>
+        </div>
+        <div class="note">
+          <h3>The first tap</h3>
+          <p>Browsers will not let a page make a sound before it is touched, so the first tap anywhere starts the audio. After that it plays as you play it, and the page asks the phone for its music volume rather than its quiet one.</p>
+        </div>
+        <div class="note">
+          <h3>Where it is not a studio</h3>
+          <p>It is an instrument, not a DAW: no plugin hosting, no timeline, five channels rather than a console. Nothing is kept between visits except the presets you save on purpose — a song file is how you keep a tune.</p>
+        </div>
+        <div class="note">
+          <h3>Your voice</h3>
+          <p>Channel five asks for the microphone, and only when you tap it. In an app's own in-browser view on iOS the microphone cannot be granted, so the page says so and offers the link to open in Safari instead.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="questions">
+      <h2><span class="num">Questions</span>The things people ask first</h2>
+      <div class="faq">
+        <details open>
+          <summary>Is it really free?</summary>
+          <p>Yes. The whole synth — 72 modules, every preset, every export — with no sign-up, no trial and no paid tier. It is open source under the MIT licence, so the <a href="https://github.com/christopherstones57-tech/Patch-Bay">source is readable</a> and forkable.</p>
+        </details>
+        <details>
+          <summary>Does it work on my phone?</summary>
+          <p>It is built for one. The rack scrolls, the sheets fit, the keys are sized for a thumb, and the patch view turns itself sideways on a phone held upright so the whole map is the wide picture it was drawn as. Add the page to your Home Screen and it opens with no browser bars at all.</p>
+        </details>
+        <details>
+          <summary>Can I keep what I make?</summary>
+          <p>Mix the five channels down to WAV or FLAC (rendered offline, faster than real time), or capture OGG. Or save a song file — a single .json holding every channel's notes, the rack each channel was recorded with and the voice take — and import it back later, exactly as it was.</p>
+        </details>
+        <details>
+          <summary>Can I use my own samples?</summary>
+          <p>The Sampler loads WAV, FLAC, Ogg Vorbis and Ogg Opus, pitched across the keyboard from its root note, so a sample follows the notes you play. There is also <strong>Rec sample</strong>: ten seconds of the rack's own output, or of your voice, dropped into a Sampler and playable straight away.</p>
+        </details>
+        <details>
+          <summary>Do I need to know about synthesis?</summary>
+          <p>No. It opens on a working rack that already makes a sound, with an envelope, a filter and a sequencer wired in — and thirty presets and five demo tunes if you would rather start from a sound than from a blank board. Auto-patch does the wiring for you whenever you would rather keep playing.</p>
+        </details>
+        <details>
+          <summary>Is anything sent anywhere?</summary>
+          <p>The page makes one outbound request: an anonymous visitor counter. Every note you play, every take and every file is made on your device and stays there — no audio is uploaded, and there is no account to upload it to. <a href="https://github.com/christopherstones57-tech/Patch-Bay/blob/main/SECURITY.md">SECURITY.md</a> lists what the page talks to.</p>
+        </details>
+        <details>
+          <summary>Can I host it myself?</summary>
+          <p>It is a folder of static files, so any host that serves https will do: GitHub Pages, itch.io, or a server of your own. No build step, no database, no server code. The README has the steps.</p>
+        </details>
+      </div>
     </section>
 
     <section id="share">
@@ -685,6 +1389,204 @@ document.querySelectorAll('[data-copy]').forEach(function (button) {
     }
   });
 });
+
+// The sound above the fold: four bars made here rather than downloaded, with one
+// oscillator pair, a filter, an echo and a drum. It demonstrates the API the
+// synth is built on rather than copying the synth — and it starts only on the
+// tap, because a browser will not let a page make a sound before one.
+(function () {
+  var button = document.getElementById('hear-btn');
+  var label = document.getElementById('hear-label');
+  var icon = document.getElementById('hear-icon');
+  var note = document.getElementById('hear-note');
+  if (!button || !label || !icon) return;
+
+  var AudioCtor = window.AudioContext || window.webkitAudioContext;
+  if (!AudioCtor) {
+    button.disabled = true;
+    if (note) note.textContent = 'This browser cannot play Web Audio — Safari, Chrome, Edge and Firefox can, and the synth itself needs it too.';
+    return;
+  }
+
+  var ctx = null;
+  var bus = null;
+  var noise = null;
+  var live = [];
+  var endTimer = 0;
+  var playing = false;
+
+  // One graph, built on the first tap and then kept: everything sums into `bus`,
+  // which feeds the speakers and an echo send of its own.
+  function context() {
+    if (!ctx) {
+      ctx = new AudioCtor();
+      bus = ctx.createGain();
+      bus.gain.value = 0.5;
+      bus.connect(ctx.destination);
+
+      var delay = ctx.createDelay(1);
+      delay.delayTime.value = 0.26;
+      var feedback = ctx.createGain();
+      feedback.gain.value = 0.3;
+      var wet = ctx.createGain();
+      wet.gain.value = 0.3;
+      bus.connect(delay);
+      delay.connect(feedback);
+      feedback.connect(delay);
+      delay.connect(wet);
+      wet.connect(ctx.destination);
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+
+  function voice(freq, at, dur) {
+    var osc = ctx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+    var sub = ctx.createOscillator();
+    sub.type = 'square';
+    sub.frequency.value = freq;
+    sub.detune.value = -8;
+
+    var filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.Q.value = 7;
+    filter.frequency.setValueAtTime(Math.min(freq * 8, 9000), at);
+    filter.frequency.exponentialRampToValueAtTime(Math.max(freq * 1.6, 260), at + dur);
+
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.2, at + 0.012);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+
+    osc.connect(filter);
+    sub.connect(filter);
+    filter.connect(gain);
+    gain.connect(bus);
+    osc.start(at);
+    sub.start(at);
+    osc.stop(at + dur + 0.05);
+    sub.stop(at + dur + 0.05);
+    live.push(osc, sub);
+  }
+
+  function bass(freq, at, dur) {
+    var osc = ctx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.3, at + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + dur);
+    osc.connect(gain);
+    gain.connect(bus);
+    osc.start(at);
+    osc.stop(at + dur + 0.05);
+    live.push(osc);
+  }
+
+  function kick(at) {
+    var osc = ctx.createOscillator();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(150, at);
+    osc.frequency.exponentialRampToValueAtTime(46, at + 0.16);
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.0001, at);
+    gain.gain.exponentialRampToValueAtTime(0.42, at + 0.006);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.3);
+    osc.connect(gain);
+    gain.connect(bus);
+    osc.start(at);
+    osc.stop(at + 0.34);
+    live.push(osc);
+  }
+
+  function hat(at) {
+    if (!noise) {
+      var length = Math.floor(ctx.sampleRate * 0.06);
+      noise = ctx.createBuffer(1, length, ctx.sampleRate);
+      var data = noise.getChannelData(0);
+      for (var i = 0; i < length; i++) {
+        data[i] = (Math.random() * 2 - 1) * (1 - i / length);
+      }
+    }
+    var src = ctx.createBufferSource();
+    src.buffer = noise;
+    var high = ctx.createBiquadFilter();
+    high.type = 'highpass';
+    high.frequency.value = 7000;
+    var gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.09, at);
+    gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.05);
+    src.connect(high);
+    high.connect(gain);
+    gain.connect(bus);
+    src.start(at);
+    live.push(src);
+  }
+
+  // A minor, G, F, E — four bars in eighth notes.
+  var CHORDS = [
+    [220.0, 261.63, 329.63, 440.0],
+    [196.0, 246.94, 293.66, 392.0],
+    [174.61, 220.0, 261.63, 349.23],
+    [164.81, 207.65, 246.94, 329.63]
+  ];
+  var PATTERN = [0, 1, 2, 3, 2, 1, 2, 3];
+
+  function finish() {
+    playing = false;
+    live = [];
+    label.textContent = 'Hear it';
+    icon.textContent = '▶';
+    button.classList.remove('on');
+    button.setAttribute('aria-label', 'Play a short demo');
+  }
+
+  function stop() {
+    clearTimeout(endTimer);
+    for (var i = 0; i < live.length; i++) {
+      try { live[i].stop(); } catch (e) {}
+    }
+    finish();
+  }
+
+  function play() {
+    context();
+    playing = true;
+    label.textContent = 'Stop';
+    icon.textContent = '■';
+    button.classList.add('on');
+    button.setAttribute('aria-label', 'Stop the demo');
+
+    var step = 60 / 150;              // an eighth note at 150 BPM
+    var start = ctx.currentTime + 0.12;
+    var count = 0;
+
+    for (var bar = 0; bar < CHORDS.length; bar++) {
+      var chord = CHORDS[bar];
+      for (var i = 0; i < 8; i++) {
+        var at = start + count * step;
+        voice(chord[PATTERN[i]] * 2, at, step * 0.92);
+        if (i === 0) bass(chord[0] / 2, at, step * 6);
+        if (i % 2 === 1) hat(at + step * 0.5);
+        if (i === 0 || i === 4) kick(at);
+        count++;
+      }
+    }
+
+    endTimer = setTimeout(finish, (count * step + 0.5) * 1000);
+  }
+
+  button.addEventListener('click', function () {
+    if (playing) {
+      stop();
+    } else {
+      play();
+    }
+  });
+})();
 </script>
 
 </body>
