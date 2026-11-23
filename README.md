@@ -369,6 +369,39 @@ the AudioWorklet need a real https address. **Run** publishes to the preview lin
 which opens in FreeMilk's own browser, and **Go Live** to the public one, which is
 the link to open in Safari — the microphone is allowed there.
 
+### Publishing it yourself
+
+FreeMilk's link is one host among many, and it is the only one that puts a "Made
+with FreeMilk" badge in the corner of the page. Nothing in the app depends on it:
+the files are the whole site, so any host that serves them over https as they are
+will do — no build step, no server, no database.
+
+**GitHub Pages**, from the repository that already holds it:
+`.github/workflows/pages.yml` publishes the files as they are on every push to
+`main`, and turns Pages on the first time it runs, so the app is at
+`https://<user>.github.io/Patch-Bay/` a minute after that first push. Pages serves
+a site from a folder rather than from a host's root, which is why every path in
+the page is relative — nothing has to change. To publish from the branch instead
+of from the workflow, set Settings → Pages → Source "Deploy from a branch", branch
+`main`, folder `/ (root)`, and delete the workflow. A private repository needs a
+paid plan for Pages either way; this one is public.
+
+**itch.io**, which the splash card already names: Dashboard → Create new project,
+kind of project HTML, and upload one zip whose top level is `index.html`, `css/`
+and `js/`. On a phone, open the project's folder in Files, select those items and
+Compress — a zip made from the folder itself holds them one level down, where itch
+does not look. Tick "This file will be played in the browser", give the embed a
+window of at least 960×600, and tick Mobile friendly. itch serves the game from its
+own https address, so the modules, the two worklets and the microphone all work as
+they do here.
+
+One thing itch does differently: the game plays inside its own frame, and iOS
+hands a frame no microphone. **Mic** there answers by copying the game's own
+address, which opens in Safari, where the microphone is allowed — that path
+already exists for any host, so it needs nothing added. The rules that keep the
+transport and the sheets clear of the FreeMilk badge (`body:has(> freemilk-badge)`
+in `css/app.css`) simply never match on a page without one.
+
 ## Licence
 
 Patch Bay is released under the MIT licence — see `LICENSE`. The bundled WASM
