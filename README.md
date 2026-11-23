@@ -437,3 +437,10 @@ in `css/app.css`) simply never match on a page without one.
 Patch Bay is released under the MIT licence — see `LICENSE`. The bundled WASM
 decoders in `js/lib` are MIT too, credited above.
 
+## What the page talks to
+
+One page of static files, one outbound request: the visitor counter. `SECURITY.md`
+lists every request the page makes, what the bundled decoder files are and where
+they come from, and how to check it — for anyone reading the source or answering a
+scanner that flagged it.
+
