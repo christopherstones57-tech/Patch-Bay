@@ -38,6 +38,39 @@
     }
   }
 
+  // Fitting the card to the window --------------------------------------------
+  //
+  // The card is drawn at a size that fills a phone, and a wider window's fallback
+  // font is wider again — so on a computer the name ran off the side, and the
+  // line under it was pushed out of sight below. The card is measured and
+  // scaled down until all of it is on screen, whatever size the window is.
+  // The lines never wrap (css/app.css), so the measured width is the real one.
+  const inner = card.querySelector('.splash-card');
+
+  function fitCard() {
+    if (!inner || !card.parentNode) return;
+    inner.style.transform = '';
+    let wide = 0;
+    for (const line of inner.querySelectorAll('.splash-line')) {
+      if (line.scrollWidth > wide) wide = line.scrollWidth;
+    }
+    const tall = inner.scrollHeight;
+    if (!wide || !tall) return;
+    const room = 24;
+    const fit = Math.min(
+      1,
+      (window.innerWidth - room * 2) / wide,
+      (window.innerHeight - room * 2) / tall
+    );
+    if (fit < 0.995) inner.style.transform = 'scale(' + fit.toFixed(3) + ')';
+  }
+
+  fitCard();
+  window.addEventListener('resize', fitCard);
+  window.addEventListener('load', fitCard);
+  // A fallback font can land after the first layout, so measure once more.
+  window.setTimeout(fitCard, 350);
+
   // The tune -----------------------------------------------------------------
   //
   // Five bell notes climbing to the octave, then the chord they came from: a

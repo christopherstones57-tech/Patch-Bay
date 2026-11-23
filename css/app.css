@@ -334,6 +334,7 @@ button.on {
 }
 
 .sheet-head {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -351,9 +352,15 @@ button.on {
   color: var(--text);
 }
 
+/* The hint is a line of its own between the sheet's controls and its list, so it
+   must never be squeezed: a flex column shrinks every item that can give, and a
+   hint shorter than its own text would let the list scroll up through it. Its
+   own colour is the panel's, so nothing shows through it in any case. */
 .sheet-hint {
+  flex: 0 0 auto;
   margin: 0;
   padding: 8px 12px 0;
+  background: #171c27;
   font-size: 10px;
   line-height: 1.4;
   color: var(--muted);
@@ -364,6 +371,7 @@ button.on {
    button sits under the box: it applies the term and puts the keyboard away, so
    the matches underneath it can be seen on a phone. */
 .sheet-search {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -404,13 +412,22 @@ button.on {
   text-transform: uppercase;
 }
 
+/* The list is the one item of a sheet that gives: it takes whatever height the
+   controls and the hint leave and scrolls inside it. */
 .sheet-list {
+  flex: 1 1 auto;
   display: grid;
   gap: 6px;
   min-height: 0;
   padding: 8px 12px 12px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* The published page's badge sits over the bottom right corner of the sheet as
+   it does over the transport, so leave room under the last row for it. */
+body:has(> freemilk-badge) .sheet-list {
+  padding-bottom: calc(12px + 48px);
 }
 
 .module-option {
@@ -1074,6 +1091,34 @@ body:has(> freemilk-badge) #transport {
   padding-bottom: calc(6px + env(safe-area-inset-bottom) + 48px);
 }
 
+/* A window too short for the whole instrument — a phone whose browser is at its
+   shortest, or a window on a computer — cannot hold the toolbar, the transport
+   and the rack at once. The two bars are as tall as their wrapped rows and the
+   rack is the only row that can give, so it was squeezed to nothing: an empty
+   band where the patch should be, and no way to scroll it. Below this height
+   both bars keep a share of the screen and scroll inside themselves instead,
+   the keys lose a little height, and the rack always keeps a quarter of it. */
+@media (max-height: 620px) {
+  #topbar {
+    flex: 0 1 auto;
+    max-height: 34vh;
+    max-height: 34dvh;
+    overflow-y: auto;
+  }
+  #transport {
+    flex: 0 1 auto;
+    max-height: 42vh;
+    max-height: 42dvh;
+    overflow-y: auto;
+  }
+  #rack {
+    flex: 1 1 auto;
+    min-height: 24vh;
+    min-height: 24dvh;
+  }
+  .keys { height: 76px; }
+}
+
 #song-info {
   font-size: 10px;
   color: #a4adc0;
@@ -1521,6 +1566,10 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
 
 .splash-line {
   margin: 0;
+  /* One unbroken line. A name that wrapped onto a second line would push the
+     line under it off the bottom of the screen; js/splash.js measures the card
+     and scales the whole of it down to fit the window instead. */
+  white-space: nowrap;
   font-family: "Arial Rounded MT Bold", "Marker Felt", "Chalkboard SE", "Arial Black", system-ui, sans-serif;
   font-weight: 900;
   line-height: 1.04;
