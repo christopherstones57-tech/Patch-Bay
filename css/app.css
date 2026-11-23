@@ -1116,7 +1116,9 @@ body:has(> freemilk-badge) #transport {
     min-height: 24vh;
     min-height: 24dvh;
   }
-  .keys { height: 76px; }
+  /* The keys are sized further down the file, so this is written against the
+     keybed itself rather than the bare class, to be sure it wins. */
+  #keyboard-wrap .keys { height: 76px; }
 }
 
 #song-info {
