@@ -10,9 +10,10 @@
 <body>
 <!-- The card that stands in front of the app while the rack is built: the
      maker's name in coloured, extruded letters over a starburst, with a little
-     tune. js/splash.js colours the letters, plays the tune and takes the card
-     away — and its first tap is also the gesture the browser needs before the
-     page may make a sound at all. -->
+     tune. js/splash.js colours the letters, asks for the tune as the card
+     arrives and takes the card away — and its first tap is also the gesture the
+     browser needs before the page may make a sound at all, so a browser that
+     holds the tune back lets it out on that tap. -->
 <div id="splash" role="dialog" aria-label="Patch Bay, made by Stonky73 at itch dot io">
   <div class="splash-rays" aria-hidden="true"></div>
   <div class="splash-rays thin" aria-hidden="true"></div>
@@ -271,7 +272,7 @@
     toast.classList.add('show');
   });
 </script>
-<script src="js/splash.js?v=14"></script>
+<script src="js/splash.js?v=15"></script>
 <script src="js/counter.js?v=13"></script>
 <script type="module" src="js/main.js?v=13"></script>
 </body>

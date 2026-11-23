@@ -77,6 +77,12 @@
   // couple of seconds, small enough to be heard out on the way in. It is written
   // here rather than played through the synth because the rack's engine is still
   // being built while the card is up.
+  //
+  // It is wanted as the card arrives, not only when the card is tapped, so it is
+  // asked for at once. A browser will not start a page's sound before the page
+  // has been touched, and leaves the context suspended until it is: the tune is
+  // then played on the first tap or key, which is the same gesture that starts
+  // the app itself. Either way it is heard once.
   const ARPEGGIO = [
     [0.0, 523.25, 0.55, 0.5],
     [0.1, 659.25, 0.55, 0.5],
@@ -85,26 +91,23 @@
     [0.44, 1318.51, 0.6, 0.32]
   ];
   const CHORD = [261.63, 329.63, 392.0, 523.25];
+  // One time through, from the first note to the chord's tail.
+  const PASS = 2.4;
 
-  function playTune() {
+  let tuneCtx = null;
+  let tuneOut = null;
+  let tuneStarted = false;
+
+  function tuneAudio() {
+    if (tuneCtx) return tuneCtx;
     const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return;
+    if (!Ctx) return null;
     let ctx = null;
     try {
       ctx = new Ctx();
     } catch (e) {
-      return;
+      return null;
     }
-    if (ctx.state === 'suspended' && ctx.resume) {
-      // It is made inside the tap, so this is allowed; the catch is for the
-      // browser that says no anyway.
-      try {
-        ctx.resume().catch(() => {});
-      } catch (e) {
-        /* silent, the notes below simply stay unheard */
-      }
-    }
-
     const master = ctx.createGain();
     master.gain.value = 0.3;
     // A little air off the top, so the bells are sweet rather than piercing.
@@ -114,46 +117,97 @@
     air.Q.value = 0.4;
     master.connect(air);
     air.connect(ctx.destination);
-
-    // One note: a triangle for the body and a sine an octave up for the shimmer,
-    // each with its own quick bloom and a decay that carries it away.
-    const bell = (start, freq, length, level) => {
-      const body = ctx.createOscillator();
-      const sheen = ctx.createOscillator();
-      const bodyGain = ctx.createGain();
-      const sheenGain = ctx.createGain();
-      body.type = 'triangle';
-      body.frequency.setValueAtTime(freq, start);
-      sheen.type = 'sine';
-      sheen.frequency.setValueAtTime(freq * 2.005, start);
-      bodyGain.gain.setValueAtTime(0.0001, start);
-      bodyGain.gain.exponentialRampToValueAtTime(level, start + 0.012);
-      bodyGain.gain.exponentialRampToValueAtTime(0.0001, start + length);
-      sheenGain.gain.setValueAtTime(0.0001, start);
-      sheenGain.gain.exponentialRampToValueAtTime(level * 0.3, start + 0.01);
-      sheenGain.gain.exponentialRampToValueAtTime(0.0001, start + length * 0.55);
-      body.connect(bodyGain).connect(master);
-      sheen.connect(sheenGain).connect(master);
-      body.start(start);
-      body.stop(start + length + 0.06);
-      sheen.start(start);
-      sheen.stop(start + length * 0.55 + 0.06);
-    };
-
-    const t0 = ctx.currentTime + 0.03;
-    for (const note of ARPEGGIO) bell(t0 + note[0], note[1], note[2], note[3]);
-    for (const freq of CHORD) bell(t0 + 0.66, freq, 1.5, 0.14);
-
-    // The card is long gone by the last note, so the context closes itself once
-    // the tail has run out rather than being left running behind the app.
-    window.setTimeout(() => {
-      try {
-        ctx.close();
-      } catch (e) {
-        /* already gone */
-      }
-    }, 3200);
+    tuneCtx = ctx;
+    tuneOut = master;
+    return ctx;
   }
+
+  // One note: a triangle for the body and a sine an octave up for the shimmer,
+  // each with its own quick bloom and a decay that carries it away.
+  function bell(start, freq, length, level) {
+    const ctx = tuneCtx;
+    if (!ctx || !tuneOut) return;
+    const body = ctx.createOscillator();
+    const sheen = ctx.createOscillator();
+    const bodyGain = ctx.createGain();
+    const sheenGain = ctx.createGain();
+    body.type = 'triangle';
+    body.frequency.setValueAtTime(freq, start);
+    sheen.type = 'sine';
+    sheen.frequency.setValueAtTime(freq * 2.005, start);
+    bodyGain.gain.setValueAtTime(0.0001, start);
+    bodyGain.gain.exponentialRampToValueAtTime(level, start + 0.012);
+    bodyGain.gain.exponentialRampToValueAtTime(0.0001, start + length);
+    sheenGain.gain.setValueAtTime(0.0001, start);
+    sheenGain.gain.exponentialRampToValueAtTime(level * 0.3, start + 0.01);
+    sheenGain.gain.exponentialRampToValueAtTime(0.0001, start + length * 0.55);
+    body.connect(bodyGain).connect(tuneOut);
+    sheen.connect(sheenGain).connect(tuneOut);
+    body.start(start);
+    body.stop(start + length + 0.06);
+    sheen.start(start);
+    sheen.stop(start + length * 0.55 + 0.06);
+  }
+
+  // One time through: the arpeggio, then the chord it came from.
+  function playPass(start) {
+    for (const note of ARPEGGIO) bell(start + note[0], note[1], note[2], note[3]);
+    for (const freq of CHORD) bell(start + 0.66, freq, 1.5, 0.14);
+  }
+
+  function closeTune() {
+    const ctx = tuneCtx;
+    tuneCtx = null;
+    tuneOut = null;
+    if (!ctx) return;
+    try {
+      ctx.close();
+    } catch (e) {
+      /* already gone */
+    }
+  }
+
+  function scheduleTune() {
+    if (tuneStarted || !tuneCtx || tuneCtx.state !== 'running') return;
+    tuneStarted = true;
+    playPass(tuneCtx.currentTime + 0.05);
+    // A card nobody touches stands there for six seconds, so the tune goes round
+    // a second time; a card on its way out takes the tune with it.
+    window.setTimeout(() => {
+      if (!tuneCtx || !card.parentNode) return;
+      if (card.classList.contains('splash-out')) return;
+      playPass(tuneCtx.currentTime + 0.05);
+    }, PASS * 1000);
+    // The last tail has run out long before this, so the context closes itself
+    // rather than being left running behind the app.
+    window.setTimeout(closeTune, (PASS * 2 + 1.6) * 1000);
+  }
+
+  function startTune() {
+    if (tuneStarted || !card.parentNode) return;
+    if (card.classList.contains('splash-out')) return;
+    const ctx = tuneAudio();
+    if (!ctx) return;
+    if (ctx.state === 'running') {
+      scheduleTune();
+      return;
+    }
+    if (!ctx.resume) return;
+    // Made inside a tap this is allowed at once; asked for as the page loads it
+    // may only be answered when the page is first touched.
+    try {
+      const asked = ctx.resume();
+      if (asked && asked.then) asked.then(scheduleTune).catch(() => {});
+    } catch (e) {
+      /* the browser simply keeps it silent */
+    }
+  }
+
+  startTune();
+  // The card's own tap and the first key both count as the gesture that lets the
+  // page make a sound, so both are listened for until the tune is heard.
+  window.addEventListener('pointerdown', startTune);
+  window.addEventListener('keydown', startTune);
 
   // Away with it --------------------------------------------------------------
   let gone = false;
@@ -161,6 +215,11 @@
   function dismiss() {
     if (gone) return;
     gone = true;
+    // The tune has had its chance: the page needs no more of these gestures.
+    window.removeEventListener('pointerdown', startTune);
+    window.removeEventListener('keydown', startTune);
+    // A context that never got to play is closed rather than left suspended.
+    if (!tuneStarted) window.setTimeout(closeTune, 0);
     card.classList.add('splash-out');
     window.setTimeout(() => {
       if (card.parentNode) card.parentNode.removeChild(card);
@@ -172,7 +231,10 @@
 
   function begin() {
     if (gone) return;
-    playTune();
+    // The tune is asked for as the card arrives, so it is usually already
+    // playing; if the browser held it back until the page was touched, this tap
+    // is what lets it out.
+    startTune();
     // The tune plays on over the rack: the card starts fading as the last note
     // lands rather than holding the app back for the whole of it.
     window.setTimeout(dismiss, 950);
@@ -182,8 +244,8 @@
   document.addEventListener('keydown', begin, { once: true });
 
   // Nobody touched it: a title card should never be a door that will not open, so
-  // it stands aside by itself. Nothing is heard in that case — a browser only
-  // makes a sound for a page after a tap — and css/app.css has the same last
-  // resort in case this file never loads at all.
+  // it stands aside by itself. A browser that will not start the tune without a
+  // touch simply never hears it, and css/app.css has the same last resort in case
+  // this file never loads at all.
   window.setTimeout(dismiss, 6000);
 })();
