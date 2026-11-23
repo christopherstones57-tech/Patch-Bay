@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#080b10">
+<title>Patch Bay — a 72-module synth that runs in your browser</title>
+<meta name="description" content="Patch Bay is a free modular synthesiser that runs entirely in the browser: 72 modules, real patch cables, five recordable channels with a lyric track, 30 presets, demo tunes, and WAV, FLAC and OGG export. Nothing to install.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Patch Bay">
+<meta property="og:title" content="Patch Bay — a 72-module synth that runs in your browser">
+<meta property="og:description" content="Drag real patch cables, record five parts, sing over them, export a WAV. Free, no install, works on a phone.">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Patch Bay — a 72-module synth in your browser">
+<meta name="twitter:description" content="72 modules, real cables, five channels and a lyric track. Free, nothing to install.">
+<!-- The page that sells the app: one file, no build step, no dependencies. Every
+     link to the synth is ./index.html so it works on any host that serves the
+     folder as it is — FreeMilk, GitHub Pages, itch.io, or a phone on a laptop's
+     local server. -->
+<style>
+:root {
+  --bg: #080b10;
+  --panel: #12161e;
+  --panel-2: #161a22;
+  --line: #2a3040;
+  --text: #e8ecf5;
+  --muted: #8b93a7;
+  --accent: #5ce1e6;
+  --accent-soft: rgba(92, 225, 230, 0.14);
+  --accent-glow: rgba(92, 225, 230, 0.45);
+  --lyric: #b06bd0;
+}
+
+* { box-sizing: border-box; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 15px;
+  line-height: 1.6;
+  background:
+    radial-gradient(1200px 620px at 50% -10%, rgba(48, 92, 114, 0.34), transparent 68%),
+    radial-gradient(900px 520px at 92% 106%, rgba(96, 52, 118, 0.26), transparent 70%),
+    var(--bg);
+  -webkit-text-size-adjust: 100%;
+}
+
+.wrap { width: min(100% - 32px, 1000px); margin: 0 auto; }
+
+/* Header ----------------------------------------------------------------- */
+
+.top {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  border-bottom: 1px solid var(--line);
+  background: rgba(8, 11, 16, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.top .wrap {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: calc(10px + env(safe-area-inset-top));
+  padding-bottom: 10px;
+}
+.brand {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  text-decoration: none;
+  color: var(--text);
+  line-height: 1.15;
+}
+.brand strong {
+  font-size: 15px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.brand span { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+
+/* Buttons ---------------------------------------------------------------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font: inherit;
+  font-size: 14px;
+  text-decoration: none;
+  color: var(--text);
+  background: linear-gradient(#252c3b, #1a1f2b);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  padding: 12px 18px;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 6px rgba(0, 0, 0, 0.45);
+  transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.98); }
+@media (hover: hover) {
+  .btn:hover { background: linear-gradient(#2b3346, #1e2431); border-color: #3a4459; }
+}
+.btn.primary {
+  background: linear-gradient(#225157, #16343a);
+  border-color: #2f7d83;
+  color: #b9f6f9;
+  font-weight: 700;
+  box-shadow: inset 0 1px 0 rgba(180, 255, 255, 0.14), 0 0 22px -6px var(--accent-glow);
+}
+@media (hover: hover) {
+  .btn.primary:hover { background: linear-gradient(#2a6167, #184046); border-color: #3d99a0; }
+}
+.btn.small { font-size: 12px; padding: 8px 13px; }
+.btn .tri { font-size: 11px; color: var(--accent); }
+
+/* Hero ------------------------------------------------------------------- */
+
+.hero { padding: clamp(28px, 7vw, 62px) 0 0; text-align: center; }
+
+.eyebrow {
+  margin: 0 0 14px;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(32px, 7.6vw, 64px);
+  line-height: 1.02;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+h1 .mark {
+  display: block;
+  color: var(--accent);
+  text-shadow: 0 0 34px var(--accent-glow);
+}
+h1 .sub {
+  display: block;
+  margin: 16px auto 0;
+  max-width: 620px;
+  font-size: clamp(15px, 3.6vw, 22px);
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+  font-weight: 400;
+  color: #cfd7e6;
+  text-shadow: none;
+}
+h1 .sub em { color: var(--lyric); font-style: normal; }
+
+.lede {
+  max-width: 620px;
+  margin: 16px auto 0;
+  color: var(--muted);
+  font-size: clamp(13.5px, 3.4vw, 16px);
+}
+
+.cta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: center;
+  margin: clamp(22px, 5vw, 30px) 0 0;
+}
+
+.fineprint {
+  margin: 14px 0 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6f788b;
+}
+
+/* The rack --------------------------------------------------------------- */
+
+.rack-wrap {
+  margin: clamp(26px, 6vw, 44px) auto 0;
+  padding: clamp(8px, 2vw, 16px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(#10141c, #0b0e15 70%, #090c11);
+  box-shadow: 0 26px 60px -28px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+}
+.rack { display: block; width: 100%; height: auto; }
+.rack text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  text-anchor: middle;
+}
+.rack .cable {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  opacity: 0.82;
+  stroke-dasharray: 7 9;
+  animation: flow 1.4s linear infinite;
+}
+.rack .cable:nth-child(2n) { animation-delay: -0.35s; }
+.rack .cable:nth-child(3n) { animation-delay: -0.7s; }
+.rack .cable:nth-child(4n) { animation-delay: -1.05s; }
+@keyframes flow { to { stroke-dashoffset: -32; } }
+
+.rack .card .body {
+  fill: hsl(var(--h) 34% 13%);
+  stroke: hsl(var(--h) 62% 48% / 0.55);
+  stroke-width: 1.2;
+}
+.rack .card .stripe { fill: hsl(var(--h) 78% 58%); opacity: 0.92; }
+.rack .card .name { fill: #e9eef8; font-size: 11.5px; font-weight: 700; letter-spacing: 0.08em; }
+.rack .card .sub { fill: hsl(var(--h) 45% 68%); font-size: 8px; letter-spacing: 0.1em; }
+.rack .card .knob {
+  fill: hsl(var(--h) 28% 22%);
+  stroke: hsl(var(--h) 62% 58% / 0.7);
+  stroke-width: 1;
+}
+.rack .card .tick { stroke: hsl(var(--h) 70% 70%); stroke-width: 1.2; stroke-linecap: round; opacity: 0.85; }
+.rack .card .port {
+  fill: #070a0e;
+  stroke: hsl(var(--h) 82% 62%);
+  stroke-width: 2;
+}
+.rack .card { animation: rise 0.55s ease both; }
+.rack .card:nth-of-type(2) { animation-delay: 0.05s; }
+.rack .card:nth-of-type(3) { animation-delay: 0.1s; }
+.rack .card:nth-of-type(4) { animation-delay: 0.15s; }
+.rack .card:nth-of-type(5) { animation-delay: 0.2s; }
+.rack .card:nth-of-type(6) { animation-delay: 0.25s; }
+.rack .card:nth-of-type(7) { animation-delay: 0.3s; }
+.rack .card:nth-of-type(8) { animation-delay: 0.35s; }
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.rack-caption {
+  margin: 12px 0 2px;
+  text-align: center;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #6f788b;
+}
+
+/* Sections --------------------------------------------------------------- */
+
+section { padding: clamp(34px, 7vw, 62px) 0 0; }
+
+h2 {
+  margin: 0 0 10px;
+  font-size: clamp(20px, 4.4vw, 29px);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+h2 .num {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.22em;
+  color: var(--accent);
+  font-weight: 400;
+}
+.section-lede { max-width: 660px; margin: 0 0 22px; color: var(--muted); font-size: 14px; }
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(228px, 1fr));
+  gap: 12px;
+}
+.tile {
+  position: relative;
+  padding: 16px 16px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(#151a23, #10141b);
+  overflow: hidden;
+}
+.tile::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 2px;
+  background: hsl(var(--h, 190) 76% 58%);
+  opacity: 0.9;
+}
+.tile .num {
+  position: absolute;
+  top: 12px;
+  right: 13px;
+  font-size: 9.5px;
+  letter-spacing: 0.12em;
+  color: #414a5c;
+}
+.tile h3 {
+  margin: 0 0 6px;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #dfe6f3;
+}
+.tile p { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* Three steps ------------------------------------------------------------ */
+
+.steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+.steps li {
+  counter-increment: step;
+  position: relative;
+  padding: 16px 16px 15px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(#151a23, #10141b);
+  font-size: 13px;
+  color: #c3cbdb;
+}
+.steps li::before {
+  content: counter(step);
+  display: block;
+  margin-bottom: 8px;
+  font-size: 22px;
+  line-height: 1;
+  font-weight: 700;
+  color: var(--accent);
+  opacity: 0.65;
+}
+.steps strong { color: var(--text); }
+
+/* Sharing ---------------------------------------------------------------- */
+
+.blurb {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  margin: 0 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #0e121a;
+}
+.blurb span {
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #6f788b;
+}
+.blurb p { margin: 0; font-size: 13px; color: #c3cbdb; }
+.blurb .btn { align-self: flex-start; font-size: 11px; padding: 7px 12px; border-radius: 7px; }
+.blurb .btn.done { color: var(--accent); border-color: #2f7d83; }
+
+/* Closing ---------------------------------------------------------------- */
+
+.closing {
+  margin: clamp(34px, 7vw, 60px) 0 0;
+  padding: clamp(26px, 6vw, 44px) clamp(18px, 5vw, 40px);
+  border: 1px solid #2b666b;
+  border-radius: 16px;
+  text-align: center;
+  background:
+    radial-gradient(600px 260px at 50% 0%, var(--accent-soft), transparent 70%),
+    linear-gradient(#101922, #0b1118);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 24px 60px -32px #000;
+}
+.closing h2 { margin-bottom: 6px; }
+.closing p { margin: 0 0 20px; color: var(--muted); font-size: 14px; }
+.closing .fineprint { margin-top: 16px; }
+
+footer {
+  margin-top: clamp(28px, 6vw, 44px);
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: #6f788b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  justify-content: space-between;
+}
+footer a { color: var(--muted); text-decoration: none; border-bottom: 1px solid #333c4d; }
+footer a:hover { color: var(--accent); border-color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .rack .cable { animation: none; stroke-dasharray: none; }
+  .rack .card { animation: none; }
+  .btn { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./index.html">
+      <strong>Patch Bay</strong>
+      <span>by Stonky73</span>
+    </a>
+    <a class="btn small primary" href="./index.html">Play free</a>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+
+    <section class="hero">
+      <p class="eyebrow">Free · in your browser · nothing to install</p>
+      <h1>
+        <span class="mark">Patch Bay</span>
+        <span class="sub">A 72-module modular synth you patch with real cables — and record on, <em>straight from the page</em>.</span>
+      </h1>
+      <p class="lede">Oscillators, filters, drum synths, sequencers and effects on a rack you can rewire with a finger. Four note channels and a lyric track, 30 presets, five demo tunes, and a mix you can export as a WAV. One tap and you are playing.</p>
+      <div class="cta-row">
+        <a class="btn primary" href="./index.html"><span class="tri">▶</span> Play Patch Bay</a>
+        <a class="btn" href="#inside">See what is in it</a>
+      </div>
+      <p class="fineprint">No sign-up · works on iPhone, iPad and laptop</p>
+
+      <div class="rack-wrap">
+        <svg class="rack" viewBox="0 0 760 300" role="img" aria-labelledby="rack-title">
+          <title id="rack-title">Eight modules — a sequencer, an oscillator, a filter, an amplifier, a delay, an output, an LFO and an envelope — joined by glowing patch cables.</title>
+          <g>
+            <path class="cable" d="M60 40 C60 13 188 13 188 40"></path>
+            <path class="cable" d="M240 88 C248 74 256 74 264 88"></path>
+            <path class="cable" d="M368 88 C376 74 384 74 392 88"></path>
+            <path class="cable" d="M496 88 C504 74 512 74 520 88"></path>
+            <path class="cable" d="M624 88 C632 74 640 74 648 88"></path>
+            <path class="cable" d="M316 176 C300 163 300 149 316 136"></path>
+            <path class="cable" d="M444 176 C428 163 428 149 444 136"></path>
+          </g>
+          <g>
+            <g class="card" style="--h:60">
+              <rect class="body" x="8" y="40" width="104" height="96" rx="10"></rect>
+              <rect class="stripe" x="8" y="40" width="104" height="3" rx="1.5"></rect>
+              <text class="name" x="60" y="66">SEQ</text>
+              <text class="sub" x="60" y="80">8 steps</text>
+              <circle class="knob" cx="38" cy="104" r="9"></circle>
+              <path class="tick" d="M38 97 L38 100"></path>
+              <circle class="knob" cx="82" cy="104" r="9"></circle>
+              <path class="tick" d="M77 100 L79 98"></path>
+              <circle class="port" cx="60" cy="40" r="4.5"></circle>
+            </g>
+            <g class="card" style="--h:200">
+              <rect class="body" x="136" y="40" width="104" height="96" rx="10"></rect>
+              <rect class="stripe" x="136" y="40" width="104" height="3" rx="1.5"></rect>
+              <text class="name" x="188" y="66">VCO</text>
+              <text class="sub" x="188" y="80">saw · pulse</text>
+              <circle class="knob" cx="166" cy="104" r="9"></circle>
+              <path class="tick" d="M166 97 L166 100"></path>
+              <circle class="knob" cx="210" cy="104" r="9"></circle>
+              <path class="tick" d="M205 100 L207 98"></path>
+              <circle class="port" cx="188" cy="40" r="4.5"></circle>
+              <circle class="port" cx="136" cy="88" r="4.5"></circle>
+              <circle class="port" cx="240" cy="88" r="4.5"></circle>
+            </g>
+            <g class="card" style="--h:275">
+              <rect class="body" x="264" y="40" width="104" height="96" rx="10"></rect>
+              <rect class="stripe" x="264" y="40" width="104" height="3" rx="1.5"></rect>
+              <text class="name" x="316" y="66">VCF</text>
+              <text class="sub" x="316" y="80">cutoff</text>
+              <circle class="knob" cx="294" cy="104" r="9"></circle>
+              <path class="tick" d="M294 97 L294 100"></path>
+              <circle class="knob" cx="338" cy="104" r="9"></circle>
+              <path class="tick" d="M333 100 L335 98"></path>
+              <circle class="port" cx="264" cy="88" r="4.5"></circle>
+              <circle class="port" cx="368" cy="88" r="4.5"></circle>
+              <circle class="port" cx="316" cy="136" r="4.5"></circle>
+            </g>
+            <g class="card" style="--h:240">
+              <rect class="body" x="392" y="40" width="104" height="96" rx="10"></rect>
+              <rect class="stripe" x="392" y="40" width="104" height="3" rx="1.5"></rect>
+              <text class="name" x="444" y="66">VCA</text>
+              <text class="sub" x="444" y="80">level</text>
+              <circle class="knob" cx="422" cy="104" r="9"></circle>
+              <path class="tick" d="M422 97 L422 100"></path>
+              <circle class="knob" cx="466" cy="104" r="9"></circle>
+              <path class="tick" d="M461 100 L463 98"></path>
+              <circle class="port" cx="392" cy="88" r="4.5"></circle>
+              <circle class="port" cx="496" cy="88" r="4.5"></circle>
+              <circle class="port" cx="444" cy="136" r="4.5"></circle>
+            </g>
+            <g class="card" style="--h:175">
+              <rect class="body" x="520" y="40" width="104" height="96" rx="10"></rect>
+              <rect class="stripe" x="520" y="40" width="104" height="3" rx="1.5"></rect>
+              <text class="name" x="572" y="66">DELAY</text>
+              <text class="sub" x="572" y="80">echo</text>
+              <circle class="knob" cx="550" cy="104" r="9"></circle>
+              <path class="tick" d="M550 97 L550 100"></path>
+              <circle class="knob" cx="594" cy="104" r="9"></circle>
+              <path class="tick" d="M589 100 L591 98"></path>
+              <circle class="port" cx="520" cy="88" r="4.5"></circle>
+              <circle class="port" cx="624" cy="88" r="4.5"></circle>
+            </g>
+            <g class="card" style="--h:240">
+              <rect class="body" x="648" y="40" width="104" height="96" rx="10"></rect>
+              <rect class="stripe" x="648" y="40" width="104" height="3" rx="1.5"></rect>
+              <text class="name" x="700" y="66">OUT</text>
+              <text class="sub" x="700" y="80">master</text>
+              <circle class="knob" cx="678" cy="104" r="9"></circle>
+              <path class="tick" d="M678 97 L678 100"></path>
+              <circle class="knob" cx="722" cy="104" r="9"></circle>
+              <path class="tick" d="M717 100 L719 98"></path>
+              <circle class="port" cx="648" cy="88" r="4.5"></circle>
+            </g>
+            <g class="card" style="--h:130">
+              <rect class="body" x="264" y="176" width="104" height="76" rx="10"></rect>
+              <rect class="stripe" x="264" y="176" width="104" height="3" rx="1.5"></rect>
+              <text class="name" x="316" y="202">LFO</text>
+              <text class="sub" x="316" y="216">slow mod</text>
+              <circle class="knob" cx="294" cy="232" r="7"></circle>
+              <circle class="knob" cx="338" cy="232" r="7"></circle>
+              <circle class="port" cx="316" cy="176" r="4.5"></circle>
+            </g>
+            <g class="card" style="--h:130">
+              <rect class="body" x="392" y="176" width="104" height="76" rx="10"></rect>
+              <rect class="stripe" x="392" y="176" width="104" height="3" rx="1.5"></rect>
+              <text class="name" x="444" y="202">ADSR</text>
+              <text class="sub" x="444" y="216">envelope</text>
+              <circle class="knob" cx="422" cy="232" r="7"></circle>
+              <circle class="knob" cx="466" cy="232" r="7"></circle>
+              <circle class="port" cx="444" cy="176" r="4.5"></circle>
+            </g>
+          </g>
+        </svg>
+        <p class="rack-caption">Tap a port, tap another — that is a cable</p>
+      </div>
+    </section>
+
+    <section id="inside">
+      <h2><span class="num">What is in it</span>A rack that grows with what you want to do</h2>
+      <p class="section-lede">Patch Bay is not one preset behind glass. Every module is yours to add, place and wire, and the rack you build records and exports like any other instrument.</p>
+
+      <div class="grid">
+        <div class="tile" style="--h:200">
+          <span class="num">01</span>
+          <h3>72 modules</h3>
+          <p>Ten oscillators, filters, ten effects, twenty-eight one-shot sound generators, sequencers, a Turing machine, a Karplus-Strong pluck and a talking formant filter.</p>
+        </div>
+        <div class="tile" style="--h:175">
+          <span class="num">02</span>
+          <h3>Real patch cables</h3>
+          <p>Drag from a port to a port, or tap one and then the other. Tap a cable to unplug it. Auto-patch rewires the whole rack in one move when you would rather keep playing.</p>
+        </div>
+        <div class="tile" style="--h:315">
+          <span class="num">03</span>
+          <h3>Sounds, not just synths</h3>
+          <p>Zap, boom, glass, thunder, cowbell, marimba — one-shot generators retriggered by a key press, so the same rack makes a lead line and a drum kit.</p>
+        </div>
+        <div class="tile" style="--h:60">
+          <span class="num">04</span>
+          <h3>Five channels</h3>
+          <p>Record four parts, each with the rack it was made on, then sing over them on channel five. Play them back together, mix them down, loop them.</p>
+        </div>
+        <div class="tile" style="--h:275">
+          <span class="num">05</span>
+          <h3>Presets and demo tunes</h3>
+          <p>Thirty built-in sounds from acid bass to ambient pad, five demo pieces that each load the rack they were written for, and your own patches saved on the device.</p>
+        </div>
+        <div class="tile" style="--h:10">
+          <span class="num">06</span>
+          <h3>Files that leave</h3>
+          <p>Mix to WAV or FLAC, or capture OGG. Save a song file and everything comes back — the notes, every channel's rack, and the voice take.</p>
+        </div>
+        <div class="tile" style="--h:240">
+          <span class="num">07</span>
+          <h3>A visualiser</h3>
+          <p>One button turns the output into a full-screen ring of spectrum, waveform and particles — with a keyboard along the bottom, so you can play it while it runs.</p>
+        </div>
+        <div class="tile" style="--h:130">
+          <span class="num">08</span>
+          <h3>Nothing to install</h3>
+          <p>No app store, no account, no download. It is a web page on the Web Audio API, so it runs the same on a phone as on a laptop.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="start">
+      <h2><span class="num">Thirty seconds in</span>Three taps and it is making noise</h2>
+      <p class="section-lede">Browsers will not let a page play a note until it is touched, so the first tap is the beginning — after that it is all yours.</p>
+      <ol class="steps">
+        <li><strong>Tap the page</strong> to start the audio, then open <strong>Demo tunes</strong> and pick one. It loads that tune's rack and plays it through the visualiser, so you hear what the synth can do before you build anything.</li>
+        <li><strong>Wire something up.</strong> Open <strong>+ Add module</strong>, add a Delay or a Pluck, then drag from one port to another. Press <strong>Auto-patch</strong> if the rack goes quiet and let it rewire itself.</li>
+        <li><strong>Make a track.</strong> Pick channel 1, tap <strong>Rec</strong>, play the keys. Add a part on channel 2, sing on channel 5, then <strong>Mix → WAV</strong>. The file downloads to the device.</li>
+      </ol>
+    </section>
+
+    <section id="share">
+      <h2><span class="num">Get it seen</span>Something to paste when you post it</h2>
+      <p class="section-lede">A link on its own does not travel far. These are written to be posted as they are — copy one, paste it where the synth people already are, and add a screenshot or a short video if you can.</p>
+
+      <div class="blurb">
+        <span>Short post — Bluesky, X, Mastodon</span>
+        <p id="blurb-short">Patch Bay — a 72-module modular synth that runs in your browser. Drag real patch cables, record five parts, sing over them, export a WAV. Free, nothing to install: https://christopherstones57-tech.github.io/Patch-Bay/</p>
+        <button class="btn" type="button" data-copy="blurb-short">Copy</button>
+      </div>
+
+      <div class="blurb">
+        <span>Forum or subreddit post</span>
+        <p id="blurb-long">I made Patch Bay, a modular synth that runs entirely in the browser — 72 modules, from a hard-synced saw and a Karplus-Strong pluck to filters, effects, drum and sound-effect generators, a step sequencer and a Turing machine. You patch it with real draggable cables (or let Auto-patch do the wiring), it has 30 presets and 5 demo tunes that each load their own rack, and five recordable channels including one for your voice. It exports WAV, FLAC and OGG, and it works on a phone with nothing to install. Feedback very welcome: https://christopherstones57-tech.github.io/Patch-Bay/</p>
+        <button class="btn" type="button" data-copy="blurb-long">Copy</button>
+      </div>
+
+      <div class="blurb">
+        <span>Devlog or itch.io update</span>
+        <p id="blurb-itch">Patch Bay is free and playable in the browser: 72 modules, real cables, five channels including a lyric track, and a mix that exports to WAV. Best with headphones. Play it here: https://christopherstones57-tech.github.io/Patch-Bay/</p>
+        <button class="btn" type="button" data-copy="blurb-itch">Copy</button>
+      </div>
+    </section>
+
+    <div class="closing">
+      <h2>It is already running. It just needs a tap.</h2>
+      <p>No install, no sign-up, no trial. Open the rack and play.</p>
+      <a class="btn primary" href="./index.html"><span class="tri">▶</span> Open Patch Bay</a>
+      <p class="fineprint">Headphones or a speaker · the first tap starts the audio</p>
+    </div>
+
+    <footer>
+      <span>Made by Stonky73 · MIT licensed · also on itch.io</span>
+      <span><a href="https://github.com/christopherstones57-tech/Patch-Bay">source on GitHub</a></span>
+    </footer>
+
+  </div>
+</main>
+
+<script>
+// Copy-to-clipboard for the blurbs above, with a fallback for a browser that
+// will not hand a page the clipboard: select the text instead and say so.
+document.querySelectorAll('[data-copy]').forEach(function (button) {
+  button.addEventListener('click', function () {
+    var target = document.getElementById(button.getAttribute('data-copy'));
+    if (!target) return;
+    var text = target.textContent.replace(/\s+/g, ' ').trim();
+    var label = button.textContent;
+    var restore = function (what) {
+      button.textContent = what;
+      button.classList.toggle('done', what !== label);
+      setTimeout(function () {
+        button.textContent = label;
+        button.classList.remove('done');
+      }, 1800);
+    };
+    var select = function () {
+      try {
+        var range = document.createRange();
+        range.selectNodeContents(target);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      } catch (e) {}
+      restore('Now copy it');
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function () {
+        restore('Copied');
+      }, select);
+    } else {
+      select();
+    }
+  });
+});
+</script>
+
+</body>
+</html>

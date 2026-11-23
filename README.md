@@ -364,6 +364,12 @@ serves files over https, and it runs there unchanged:
   `js/lib/ogg-vorbis-decoder.min.js` — only for loading FLAC/Ogg files the
   browser cannot decode by itself
 
+`ad.html` is not part of the app and none of the above needs it: it is a
+single self-contained promo page for Patch Bay — its own styles and one small
+script are inside the file — whose every link is written `./index.html`, so it
+works beside the app on any host and can be posted anywhere that serves files.
+Upload it or leave it out; the synth runs either way.
+
 Opening `index.html` from the Files app (`file://`) does not work: ES modules and
 the AudioWorklet need a real https address. **Run** publishes to the preview link,
 which opens in FreeMilk's own browser, and **Go Live** to the public one, which is
