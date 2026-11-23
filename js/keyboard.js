@@ -12,7 +12,7 @@ import {
   MAX_CHANNEL_VOLUME,
   hasLyrics,
   lyricEnd
-} from './app.js?v=12';
+} from './app.js?v=13';
 
 import {
   openVoices,
@@ -20,7 +20,7 @@ import {
   channelVolume,
   setChannelVolume,
   applyLiveChannel
-} from './voices.js?v=12';
+} from './voices.js?v=13';
 
 import {
   requestLyricMic,
@@ -31,7 +31,7 @@ import {
   playLyrics,
   stopLyrics,
   setLyricVolume
-} from './lyrics.js?v=12';
+} from './lyrics.js?v=13';
 
 import {
   micProblem,
@@ -39,9 +39,9 @@ import {
   offerMicInSafari,
   micRefusedByTake,
   micGrantedByTake
-} from './sample-recorder.js?v=12';
+} from './sample-recorder.js?v=13';
 
-import { startClick, stopClick, COUNT_IN_BEATS } from './click.js?v=12';
+import { startClick, stopClick, COUNT_IN_BEATS } from './click.js?v=13';
 
 const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 

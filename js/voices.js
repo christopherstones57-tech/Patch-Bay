@@ -17,8 +17,8 @@
 // only as long as the page — so a Sampler channel plays silent until a sample is
 // loaded into it again.
 
-import { app, NOTE_CHANNEL_COUNT, MAX_CHANNEL_VOLUME } from './app.js?v=12';
-import { Engine } from './engine.js?v=12';
+import { app, NOTE_CHANNEL_COUNT, MAX_CHANNEL_VOLUME } from './app.js?v=13';
+import { Engine } from './engine.js?v=13';
 
 // The rack as it stands this moment, deep enough to be played on its own.
 export function snapshotRack() {

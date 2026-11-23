@@ -1,7 +1,7 @@
 // Builds a live or offline audio graph from the patch state.
 
-import { DEFS } from './modules.js?v=12';
-import { MAX_CHANNEL_VOLUME } from './app.js?v=12';
+import { DEFS } from './modules.js?v=13';
+import { MAX_CHANNEL_VOLUME } from './app.js?v=13';
 
 // The master loudness stage ---------------------------------------------------
 //

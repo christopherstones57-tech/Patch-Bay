@@ -12,7 +12,7 @@
 // hears the bar counted in and plays on the downbeat, which is the moment the
 // recorded notes and a lyric take begin.
 
-import { app } from './app.js?v=12';
+import { app } from './app.js?v=13';
 
 // One bar of 4/4: the shortest count-in that still says where the beat is.
 export const COUNT_IN_BEATS = 4;

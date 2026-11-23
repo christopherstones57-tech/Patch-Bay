@@ -3,9 +3,9 @@
 // kick of the bass. It listens to the master output of the live engine, so it
 // shows whatever the rack — or the demo tune — is playing.
 
-import { app } from './app.js?v=12';
-import { mountKeybed, shiftKeyboardOctave } from './keyboard.js?v=12';
-import { voiceBus } from './voices.js?v=12';
+import { app } from './app.js?v=13';
+import { mountKeybed, shiftKeyboardOctave } from './keyboard.js?v=13';
+import { voiceBus } from './voices.js?v=13';
 
 const BARS = 64;
 const MAX_PARTICLES = 90;

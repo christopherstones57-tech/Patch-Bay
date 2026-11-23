@@ -9,11 +9,11 @@ import {
   NOTE_CHANNEL_COUNT,
   LYRIC_CHANNEL,
   MAX_CHANNEL_VOLUME
-} from './app.js?v=12';
-import { Engine } from './engine.js?v=12';
-import { playOnce, stopPlayback } from './keyboard.js?v=12';
-import { mixLyricsInto } from './lyrics.js?v=12';
-import { voiceBus } from './voices.js?v=12';
+} from './app.js?v=13';
+import { Engine } from './engine.js?v=13';
+import { playOnce, stopPlayback } from './keyboard.js?v=13';
+import { mixLyricsInto } from './lyrics.js?v=13';
+import { voiceBus } from './voices.js?v=13';
 
 function writeString(view, offset, str) {
   for (let i = 0; i < str.length; i++) view.setUint8(offset + i, str.charCodeAt(i));

@@ -12,8 +12,8 @@
 // source that puts it back there. The transport in js/keyboard.js decides when to
 // start and stop a take; this file decides how one is captured, kept and played.
 
-import { app, setAudioSession, LYRIC_CHANNEL, MAX_CHANNEL_VOLUME } from './app.js?v=12';
-import { openMicrophone } from './sample-recorder.js?v=12';
+import { app, setAudioSession, LYRIC_CHANNEL, MAX_CHANNEL_VOLUME } from './app.js?v=13';
+import { openMicrophone } from './sample-recorder.js?v=13';
 
 // The voice joins the mix after the rack's own levelling at this gain, so it sits
 // under the patch rather than on top of it. See Engine's rackGain.
@@ -30,7 +30,7 @@ const LYRIC_MAX_BOOST = 4;
 const FLUSH_WAIT_MS = 220;
 
 const WORKLET_NAME = 'lyric-recorder';
-const WORKLET_URL = new URL('./lyric-recorder-worklet.js?v=12', import.meta.url).href;
+const WORKLET_URL = new URL('./lyric-recorder-worklet.js?v=13', import.meta.url).href;
 
 // A lyric take wants the backing out of it. The microphone sits near the phone's
 // own speaker, so echo cancellation is asked for — unlike the sample recorder,

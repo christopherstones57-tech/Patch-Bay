@@ -17,7 +17,7 @@
 // ('playback'), in js/app.js — and, on a browser that decides from the media it
 // has seen, the silent file main.js loops. Both stay; the detour is gone.
 
-import { setAudioSession } from './app.js?v=12';
+import { setAudioSession } from './app.js?v=13';
 
 // The node the live engine's master volume connects into. Called once per
 // AudioContext, so a rack swap — which builds a new engine on the same context —

@@ -5,8 +5,8 @@
 // with envelopes and LFOs wired into the VCA and filter, and the sequencer
 // into the oscillator pitch. Ports sum, so several sources can share one input.
 
-import { DEFS } from './modules.js?v=12';
-import { app, addCable, removeAllCables } from './app.js?v=12';
+import { DEFS } from './modules.js?v=13';
+import { app, addCable, removeAllCables } from './app.js?v=13';
 
 const SOURCES = [
   'vco',

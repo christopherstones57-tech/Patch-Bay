@@ -294,13 +294,56 @@ button.on {
 }
 .viewer-stat i { font-style: normal; }
 
-/* The toolbar has grown along with the rack's features, and on a phone every
-   extra row of it comes out of the rack. Tighten the buttons a little and their
-   gap, which is enough for the same actions to wrap into one row fewer. */
+/* A phone's screen, top to bottom -----------------------------------------
+   The toolbar and the transport have grown along with the rack's features, and
+   on a phone every row they wrap into is taken straight out of the module view:
+   left at their desk size they fill most of the screen between them and leave a
+   patch a sliver of it, too small to see a card in. Everything inside both bars
+   is sized down here — shorter rows, tighter buttons and labels, a narrower Vol
+   slider, a slimmer mixer and keybed — so that the whole instrument, the rack
+   included, fits one screen. */
+
 @media (max-width: 700px) {
-  #topbar .bar-row { gap: 5px; }
-  #topbar button { font-size: 10px; padding: 6px 8px; }
-  .mini input[type=range] { width: 58px; }
+  /* The bars themselves: less padding, and a tighter gap between their rows. */
+  #topbar,
+  #transport {
+    padding-left: 5px;
+    padding-right: 5px;
+    gap: 4px;
+  }
+  #topbar {
+    padding-top: calc(4px + env(safe-area-inset-top));
+    padding-bottom: 4px;
+  }
+  #transport {
+    padding-top: 4px;
+    padding-bottom: calc(4px + env(safe-area-inset-bottom));
+  }
+  #topbar .bar-row,
+  #transport .bar-row { gap: 3px; }
+
+  /* Toolbar buttons. */
+  #topbar button {
+    font-size: 9px;
+    padding: 3px 5px;
+    border-radius: 6px;
+  }
+
+  /* The tune's own name is not a toolbar button, and keeps a size worth
+     reading; the two lines of the title row keep their height from it. */
+  #topbar #btn-tune-name { font-size: 12px; padding: 5px 8px; }
+  #tune-name-input { font-size: 12px; padding: 5px 8px; }
+  .tune-label { font-size: 9px; letter-spacing: 0.08em; }
+
+  /* The visitor counter: the same two numbers in less of the row. */
+  .viewer-count { font-size: 7px; padding: 2px 5px; gap: 0; }
+  .viewer-stat b { font-size: 10px; }
+
+  /* Vol and BPM, on a narrower track. */
+  .mini { font-size: 9px; gap: 3px; }
+  .mini input[type=range] { width: 46px; }
+  .mini input[type=number] { width: 44px; font-size: 10px; padding: 3px 4px; }
+  .meter { height: 14px; }
 }
 
 /* Module picker sheet ----------------------------------------------------- */
@@ -738,6 +781,51 @@ body:has(> freemilk-badge) .sheet-list {
 }
 .param.toggle input { accent-color: hsl(var(--hue) 75% 60%); }
 
+/* A card's controls, and the knobs among them ------------------------------
+   Every continuous parameter is a knob: the modules are hardware, and a knob
+   turns through 270° in the module's own colour with its name and its value
+   under the dial. The dial itself is drawn by the .knob rules further down the
+   file, where the mixer's five are; this is what a card's copy looks like, and
+   the grid the parameters sit in — two knobs to a row, a menu or a switch across
+   the whole card. A card is 215 pixels wide and gives a fifth of that to each
+   column of ports, so two is what a dial and a readable value fit in. */
+
+.card .params {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px 2px;
+  align-content: start;
+  align-items: start;
+}
+.card .params > * { grid-column: 1 / -1; }
+.card .params > .knob-param { grid-column: span 1; }
+.card .param { margin: 0; }
+
+.card .knob {
+  --knob-tint: hsl(var(--hue) 72% 62%);
+  --knob-dark: hsl(var(--hue) 28% 28% / 0.8);
+  --knob-glow: hsl(var(--hue) 85% 62% / 0.4);
+  width: 100%;
+  padding: 1px 0 0;
+  gap: 1px;
+}
+.card .knob-dial { width: 32px; height: 32px; }
+.card .knob-cap { inset: 4px; }
+.card .knob-name,
+.card .knob-val {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 8px;
+  line-height: 10px;
+  text-align: center;
+}
+.card .knob-name { color: var(--muted); }
+.card .knob-val { font-size: 9px; font-weight: 700; color: hsl(var(--hue) 60% 78%); }
+.card .knob.dragging .knob-val { color: hsl(var(--hue) 85% 88%); }
+
 .sample-ui {
   display: flex;
   flex-direction: column;
@@ -1126,16 +1214,9 @@ body:has(> freemilk-badge) #transport {
     flex: 0 1 auto;
     overflow-y: auto;
   }
-  #topbar .bar-row { gap: 4px; }
-  #topbar button { font-size: 10px; padding: 5px 7px; }
-  #transport .bar-row { gap: 4px; }
-  #transport .bar-row button { font-size: 10px; padding: 5px 7px; }
-  /* The knobs are not transport buttons: their own padding is what shapes the
-     dial, so the tighter button rule above is left off them. */
-  #transport .bar-row .knob { padding: 2px 5px 0; font-size: 11px; }
   /* The keys are sized further down the file, so this is written against the
      keybed itself rather than the bare class, to be sure it wins. */
-  #keyboard-wrap .keys { height: 76px; }
+  #keyboard-wrap .keys { height: 64px; }
 }
 
 #song-info {
@@ -1150,15 +1231,38 @@ body:has(> freemilk-badge) #transport {
 }
 
 /* The transport has grown as the toolbar did — Click and Quantize beside Rec,
-   Play and Loop — and on a phone its rows wrap into one more line, which comes
-   out of the rack. Tighter buttons there keep them where they were. Only the
-   rows are tightened: the octave buttons and the keys are outside a .bar-row. */
+   Play and Loop, and five knobs above the keys — and on a phone it is the
+   biggest thing on the screen after the rack. Tighter buttons, a smaller dial and
+   a slimmer keybed keep the whole of it below the patch. The octave buttons and
+   the keys are outside a .bar-row, so they are sized on their own. */
 @media (max-width: 700px) {
-  #transport .bar-row { gap: 4px; }
-  #transport .bar-row button { font-size: 10px; padding: 6px 7px; }
+  #transport .bar-row button {
+    font-size: 9px;
+    padding: 3px 5px;
+    border-radius: 6px;
+  }
   /* The knobs are not transport buttons: their own padding is what shapes the
      dial, so the tighter button rule above is left off them. */
-  #transport .bar-row .knob { padding: 2px 5px 0; font-size: 11px; }
+  #transport .bar-row .knob { padding: 1px 4px 0; font-size: 10px; }
+  /* A channel button keeps a finger's width and loses its height. */
+  #transport .bar-row button.chan { min-width: 26px; padding: 3px 5px; }
+  #song-info { font-size: 9px; padding: 2px 6px; }
+
+  /* The mixer: a smaller dial, still a ring with a pointer in it. Written against
+     the transport because the knobs themselves are drawn further down the file. */
+  #transport .chan-vol-row { padding: 2px 2px 1px; gap: 1px; }
+  #transport .chan-vol { gap: 1px; }
+  #transport .chan-vol-name { font-size: 8px; }
+  #transport .chan-label { font-size: 9px; }
+  #transport .knob-dial { width: 26px; height: 26px; }
+  #transport .knob-val { font-size: 7px; line-height: 8px; }
+
+  /* The keybed, two octaves under the fingers in less of the screen. */
+  #keyboard-wrap { padding: 3px; gap: 4px; }
+  #keyboard-wrap .keys { height: 68px; }
+  #keyboard-wrap #oct-down,
+  #keyboard-wrap #oct-up { width: 28px; font-size: 14px; }
+  #keyboard-wrap .key .lbl { font-size: 7px; bottom: 3px; }
 }
 
 /* Recording channels and the mix sheet ------------------------------------ */

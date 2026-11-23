@@ -23,16 +23,16 @@ import {
   NOTE_CHANNEL_COUNT,
   MAX_CHANNEL_VOLUME,
   setChannel
-} from './app.js?v=12';
-import { encodeWav, downloadBlob, exportFileName } from './export.js?v=12';
-import { cleanEvents, cleanRack } from './persist.js?v=12';
+} from './app.js?v=13';
+import { encodeWav, downloadBlob, exportFileName } from './export.js?v=13';
+import { cleanEvents, cleanRack } from './persist.js?v=13';
 import {
   stopPlayback,
   stopRecordingNow,
   updateSongInfo,
   renderKeyboard
-} from './keyboard.js?v=12';
-import { decodeSampleFile } from './decode-audio.js?v=12';
+} from './keyboard.js?v=13';
+import { decodeSampleFile } from './decode-audio.js?v=13';
 
 const SONG_FORMAT = 'patchbay-song';
 const SONG_VERSION = 1;

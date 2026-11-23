@@ -1,9 +1,9 @@
 // The patch bay: module cards, ports, patch cables and drag interactions.
 
-import { DEFS } from './modules.js?v=12';
-import { app, getModule, removeCable, addCable } from './app.js?v=12';
-import { autoConnectModule } from './autopatch.js?v=12';
-import { decodeSampleFile } from './decode-audio.js?v=12';
+import { DEFS } from './modules.js?v=13';
+import { app, getModule, removeCable, addCable } from './app.js?v=13';
+import { autoConnectModule } from './autopatch.js?v=13';
+import { decodeSampleFile } from './decode-audio.js?v=13';
 
 const CARD_W = 215;
 const BOARD_PAD = 90;
@@ -33,6 +33,13 @@ export function initPatchbay() {
   boardEl.addEventListener('change', onParamInput);
   boardEl.addEventListener('change', onFileChange);
   boardEl.addEventListener('click', onClick);
+  // The knobs on the cards: a drag turns one, a double-tap puts it back, and a
+  // focused knob turns to the arrow keys.
+  boardEl.addEventListener('pointerdown', onKnobDown);
+  boardEl.addEventListener('pointermove', onKnobMove);
+  boardEl.addEventListener('pointerup', onKnobUp);
+  boardEl.addEventListener('pointercancel', onKnobUp);
+  boardEl.addEventListener('keydown', onKnobKey);
   svgEl.addEventListener('click', onCableClick);
 
   app.onCablesChanged = scheduleCables;
@@ -164,6 +171,8 @@ export function updateParamControl(id, key) {
   }
   const label = card.querySelector(`.val[data-val="${key}"]`);
   if (label) label.textContent = formatValue(pd, value);
+  const knob = card.querySelector(`.knob[data-key="${key}"]`);
+  if (knob) paintKnob(knob, pd, value);
 }
 
 function portHTML(mod, p, role) {
@@ -192,11 +201,14 @@ function formatValue(pd, v) {
   } else if (unit === 'hz') {
     s = v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v < 100 ? v.toFixed(1) : String(Math.round(v));
   } else if (unit === 's') {
-    s = v.toFixed(2);
+    // An envelope's attack can be a few milliseconds, so the small ones keep a
+    // third decimal: 0.013s rather than 0.01.
+    s = v >= 1 ? v.toFixed(2) : v.toFixed(3);
   } else if (unit === 'ct' || unit === 'dB') {
     s = String(Math.round(v));
   } else {
-    s = Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(2);
+    const decimals = pd.step && pd.step < 0.01 ? Math.min(4, Math.ceil(-Math.log10(pd.step))) : 2;
+    s = Math.abs(v) >= 10 ? v.toFixed(0) : v.toFixed(decimals);
   }
   return s + unit;
 }
@@ -223,12 +235,231 @@ function paramHTML(mod, pd) {
   const max = isLog ? 1000 : pd.max;
   const step = isLog ? 1 : pd.step || 0.01;
   const sliderVal = isLog ? valueToSlider(val, pd) : val;
+  const ptype = isLog ? 'logrange' : 'range';
+  const text = formatValue(pd, val);
+  const frac = knobFractionFor(pd, val);
 
-  return `<div class="param">
-    <label>${pd.label} <span class="val" data-val="${pd.key}">${formatValue(pd, val)}</span></label>
-    <input class="p" type="range" data-key="${pd.key}" data-ptype="${isLog ? 'logrange' : 'range'}"
-      min="${min}" max="${max}" step="${step}" value="${sliderVal}">
+  // A knob and the track it hides. The track stays in the page — unseen, out of
+  // the tab order — because everything else that touches a parameter reads and
+  // writes it: presets, the autosave, an imported song file, the Sampler's own
+  // root and loop. The knob turns the same value through the same events, so
+  // none of that had to learn about knobs.
+  return `<div class="param knob-param">
+    <button class="knob" type="button" data-key="${pd.key}" data-ptype="${ptype}"
+      role="slider" aria-orientation="vertical" aria-label="${escapeHtml(pd.label)}"
+      aria-valuemin="${pd.min}" aria-valuemax="${pd.max}" aria-valuenow="${val}"
+      aria-valuetext="${escapeHtml(text)}"
+      style="--knob-angle:${(-KNOB_SWING / 2 + frac * KNOB_SWING).toFixed(2)}deg;--knob-sweep:${(frac * KNOB_SWING).toFixed(2)}deg"
+      title="${escapeHtml(pd.label)} — drag up or down; shift for fine; double-tap to reset">
+      <span class="knob-dial"><i class="knob-cap"></i></span>
+      <span class="knob-name">${escapeHtml(pd.label)}</span>
+      <span class="knob-val val" data-val="${pd.key}">${escapeHtml(text)}</span>
+    </button>
+    <input class="p" type="range" data-key="${pd.key}" data-ptype="${ptype}"
+      min="${min}" max="${max}" step="${step}" value="${sliderVal}" hidden
+      aria-hidden="true" tabindex="-1">
   </div>`;
+}
+
+// Knobs ---------------------------------------------------------------------
+// Every continuous parameter on a card is a knob rather than a track. It turns
+// through 270° in the module's own colour, its name and its value under the dial,
+// and it is dragged up and down: a finger on a knob never covers the value it is
+// setting, which a track under the thumb always did. The drag is relative — the
+// value moves on from where the knob was found rather than jumping to wherever
+// the touch landed — and shift turns it four times as fine. It is also the more
+// accurate of the two controls: the whole range takes 240 pixels of drag, every
+// value is snapped to the parameter's own step, and the number under the dial
+// says what it is, to the millisecond on an envelope and the hertz on a filter.
+const KNOB_SWING = 270; // degrees the pointer turns through, bottom to top
+const KNOB_TRAVEL = 240; // pixels of drag that cover the whole turn
+const KNOB_FINE = 4; // hold shift to drag a quarter as fast
+const KNOB_DOUBLE_TAP = 320; // ms: a second tap within this puts the knob back
+
+let paramDrag = null;
+let paramTap = { el: null, at: 0 };
+
+// Where a knob points for a value: 0 at the bottom of the range, 1 at the top. A
+// logarithmic parameter is measured along its own curve, which is what gives a
+// filter's low end the room its slider never had.
+function knobFractionFor(pd, value) {
+  if (pd.type === 'logrange') {
+    return Math.max(0, Math.min(1, valueToSlider(value, pd) / 1000));
+  }
+  const span = pd.max - pd.min || 1;
+  return Math.max(0, Math.min(1, (value - pd.min) / span));
+}
+
+// The value a knob points at, snapped to the parameter's own step.
+function knobValue(pd, fraction) {
+  const f = Math.max(0, Math.min(1, Number(fraction) || 0));
+  if (pd.type === 'logrange') {
+    const v = sliderToValue(f * 1000, pd);
+    return Math.max(pd.min, Math.min(pd.max, Number(v.toPrecision(3))));
+  }
+  const step = pd.step || 0.01;
+  let v = pd.min + f * (pd.max - pd.min);
+  v = Math.round(v / step) * step;
+  // Take the noise of floating point off the step: 0.35, not 0.35000000000000003.
+  v = step < 1 ? Number(v.toFixed(4)) : Math.round(v);
+  return Math.max(pd.min, Math.min(pd.max, v));
+}
+
+// Draw the ring, the pointer and the number on one knob.
+function paintKnob(knob, pd, value) {
+  if (!knob) return;
+  const f = knobFractionFor(pd, value);
+  knob.style.setProperty('--knob-angle', (-KNOB_SWING / 2 + f * KNOB_SWING).toFixed(2) + 'deg');
+  knob.style.setProperty('--knob-sweep', (f * KNOB_SWING).toFixed(2) + 'deg');
+  const text = formatValue(pd, value);
+  knob.setAttribute('aria-valuenow', String(value));
+  knob.setAttribute('aria-valuetext', text);
+  const out = knob.querySelector('.knob-val');
+  if (out) out.textContent = text;
+}
+
+// What a knob on a card is attached to: its card, its module, and the parameter
+// definition behind it.
+function knobTarget(knob) {
+  const card = knob && knob.closest ? knob.closest('.card') : null;
+  if (!card) return null;
+  const mod = getModule(card.dataset.id);
+  if (!mod) return null;
+  const def = DEFS[mod.type];
+  const pd = def && def.params.find((p) => p.key === knob.dataset.key);
+  if (!pd) return null;
+  if (pd.type !== 'range' && pd.type !== 'logrange') return null;
+  return { card, mod, pd };
+}
+
+// Turn a knob to a value: into the hidden track the rest of the app reads it
+// from, and through the same handler a finger on the old slider fired, so the
+// sound and the stored patch follow it as they always did.
+function setKnobValue(target, value) {
+  const input = target.card.querySelector(`.p[data-key="${target.pd.key}"]`);
+  if (!input) return;
+  const track = target.pd.type === 'logrange' ? valueToSlider(value, target.pd) : value;
+  input.value = String(track);
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function onKnobDown(e) {
+  const knob = e.target && e.target.closest ? e.target.closest('.card .knob') : null;
+  if (!knob) return;
+  // Only the primary button: a right-click or a middle-click is not a turn.
+  if (e.button != null && e.button > 0) return;
+  const target = knobTarget(knob);
+  if (!target) return;
+  e.preventDefault();
+  // Focus follows the finger, so the arrow keys turn the knob just touched.
+  try {
+    knob.focus({ preventScroll: true });
+  } catch (err) {
+    /* focus is a nicety: the knob still turns */
+  }
+
+  // A second tap in the same place puts the knob back to the value its module was
+  // built with, however far it had been turned.
+  const at = Date.now();
+  if (paramTap.el === knob && at - paramTap.at < KNOB_DOUBLE_TAP) {
+    paramTap = { el: null, at: 0 };
+    paramDrag = null;
+    knob.classList.remove('dragging');
+    setKnobValue(target, target.pd.def);
+    app.toast(target.pd.label + ' back at ' + formatValue(target.pd, target.pd.def));
+    return;
+  }
+  paramTap = { el: knob, at };
+
+  paramDrag = {
+    el: knob,
+    target,
+    pointerId: e.pointerId,
+    startY: e.clientY,
+    startFraction: knobFractionFor(target.pd, target.mod.params[target.pd.key])
+  };
+  knob.classList.add('dragging');
+  try {
+    knob.setPointerCapture(e.pointerId);
+  } catch (err) {
+    /* a browser without capture still gets the moves over the knob */
+  }
+}
+
+function onKnobMove(e) {
+  if (!paramDrag || e.pointerId !== paramDrag.pointerId) return;
+  const d = paramDrag;
+  e.preventDefault();
+  // Up turns the knob up: the drag is measured from where the finger went down, so
+  // the value never jumps, and shift makes it four times as fine.
+  const dy = (d.startY - e.clientY) / KNOB_TRAVEL;
+  const f = d.startFraction + dy * (e.shiftKey ? 1 / KNOB_FINE : 1);
+  setKnobValue(d.target, knobValue(d.target.pd, f));
+}
+
+function onKnobUp(e) {
+  if (!paramDrag) return;
+  if (e && e.pointerId != null && e.pointerId !== paramDrag.pointerId) return;
+  const el = paramDrag.el;
+  const id = paramDrag.pointerId;
+  paramDrag = null;
+  el.classList.remove('dragging');
+  try {
+    el.releasePointerCapture(id);
+  } catch (err) {
+    /* already released */
+  }
+}
+
+// A computer keyboard turns the knob too: arrows by one step, page keys by ten,
+// Home and End to the ends of the range.
+function onKnobKey(e) {
+  const knob = e.target && e.target.closest ? e.target.closest('.card .knob') : null;
+  if (!knob) return;
+  const target = knobTarget(knob);
+  if (!target) return;
+  const pd = target.pd;
+  const value = target.mod.params[pd.key];
+  const fine = e.shiftKey;
+  let next;
+  switch (e.key) {
+    case 'ArrowUp':
+    case 'ArrowRight':
+      next = knobStep(pd, value, 1, fine);
+      break;
+    case 'ArrowDown':
+    case 'ArrowLeft':
+      next = knobStep(pd, value, -1, fine);
+      break;
+    case 'PageUp':
+      next = knobStep(pd, value, 10, fine);
+      break;
+    case 'PageDown':
+      next = knobStep(pd, value, -10, fine);
+      break;
+    case 'Home':
+      next = pd.min;
+      break;
+    case 'End':
+      next = pd.max;
+      break;
+    default:
+      return;
+  }
+  e.preventDefault();
+  setKnobValue(target, next);
+}
+
+// One turn of the keyboard: the parameter's own step for a linear range, a
+// fiftieth of the sweep for a logarithmic one.
+function knobStep(pd, value, times, fine) {
+  if (pd.type === 'logrange') {
+    const t = valueToSlider(value, pd) + times * (fine ? 2 : 20);
+    return knobValue(pd, Math.max(0, Math.min(1000, t)) / 1000);
+  }
+  const span = pd.max - pd.min || 1;
+  const step = (pd.step || span / 100) * times * (fine ? 0.1 : 1);
+  return knobValue(pd, (value - pd.min + step) / span);
 }
 
 // Parameter editing ---------------------------------------------------------
@@ -257,6 +488,8 @@ function onParamInput(e) {
 
   const label = card.querySelector(`.val[data-val="${key}"]`);
   if (label) label.textContent = formatValue(pd, value);
+  const knob = card.querySelector(`.knob[data-key="${key}"]`);
+  if (knob) paintKnob(knob, pd, value);
 }
 
 function onClick(e) {

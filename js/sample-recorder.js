@@ -20,8 +20,8 @@
 // back, for a browser this page could not recognise in advance, and that one is
 // not asked again either.
 
-import { app, setAudioSession, addCable, removeCable } from './app.js?v=12';
-import { updateSampleName, updateParamControl, revealModule } from './patchbay.js?v=12';
+import { app, setAudioSession, addCable, removeCable } from './app.js?v=13';
+import { updateSampleName, updateParamControl, revealModule } from './patchbay.js?v=13';
 
 const BEEP_HZ = 880;
 const BEEP_LEN = 0.12;
@@ -774,7 +774,7 @@ function attachMic(s, stream) {
 // Load the capture worklet once per page.
 function loadWorklet(ctx) {
   if (!workletModule) {
-    const url = new URL('./sample-recorder-worklet.js?v=12', import.meta.url).href;
+    const url = new URL('./sample-recorder-worklet.js?v=13', import.meta.url).href;
     workletModule = ctx.audioWorklet.addModule(url).catch((e) => {
       workletModule = null;
       throw e;

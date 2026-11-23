@@ -6,8 +6,8 @@
 // read back through the same cleaning, and a preset saved by an older build
 // cannot leave a module with a missing parameter.
 
-import { app } from './app.js?v=12';
-import { cleanModule, cleanCable, noteIds } from './persist.js?v=12';
+import { app } from './app.js?v=13';
+import { cleanModule, cleanCable, noteIds } from './persist.js?v=13';
 
 const KEY = 'patchbay.presets.v1';
 const MAX_PRESETS = 60;

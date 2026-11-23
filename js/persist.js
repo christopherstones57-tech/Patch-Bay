@@ -11,8 +11,8 @@
 // only settings the current build knows are kept, so a file from another visit
 // cannot leave a module with a missing or stale parameter.
 
-import { app, CHANNEL_COUNT, NOTE_CHANNEL_COUNT } from './app.js?v=12';
-import { DEFS, defaultParams } from './modules.js?v=12';
+import { app, CHANNEL_COUNT, NOTE_CHANNEL_COUNT } from './app.js?v=13';
+import { DEFS, defaultParams } from './modules.js?v=13';
 
 const KEY = 'patchbay.rack.v1';
 

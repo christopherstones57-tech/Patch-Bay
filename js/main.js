@@ -16,12 +16,12 @@ import {
   lyricEnd,
   setAudioSession,
   getAudioSessionType
-} from './app.js?v=12';
-import { DEFS, defaultParams, MODULE_INFO, MODULE_GROUPS } from './modules.js?v=12';
-import { Engine } from './engine.js?v=12';
-import { voiceBus, applyLiveChannel } from './voices.js?v=12';
-import { liveOutput } from './output-route.js?v=12';
-import { autoPatch, autoConnectModule } from './autopatch.js?v=12';
+} from './app.js?v=13';
+import { DEFS, defaultParams, MODULE_INFO, MODULE_GROUPS } from './modules.js?v=13';
+import { Engine } from './engine.js?v=13';
+import { voiceBus, applyLiveChannel } from './voices.js?v=13';
+import { liveOutput } from './output-route.js?v=13';
+import { autoPatch, autoConnectModule } from './autopatch.js?v=13';
 import {
   initPatchbay,
   rebuildCards,
@@ -33,20 +33,20 @@ import {
   initPatchMap,
   fitPatchMap,
   zoomPatchMap
-} from './patchbay.js?v=12';
-import { initKeyboard, updateSongInfo, stopPlayback, stopRecordingNow, playTune } from './keyboard.js?v=12';
+} from './patchbay.js?v=13';
+import { initKeyboard, updateSongInfo, stopPlayback, stopRecordingNow, playTune } from './keyboard.js?v=13';
 import {
   initVisualiser,
   openVisualiser,
   closeVisualiser,
   setVisualiserCaption
-} from './visualiser.js?v=12';
-import { DEMO_TUNES } from './demo.js?v=12';
-import { exportWav, exportFlac, exportOgg, oggMime } from './export.js?v=12';
-import { initSampleRecorder } from './sample-recorder.js?v=12';
-import { saveSongFile, importSongFile } from './song-file.js?v=12';
-import { loadRack, saveRack, startAutoSave } from './persist.js?v=12';
-import { listPresets, savePreset, removePreset, presetRack, adoptRack, BUILT_IN_PRESETS } from './presets.js?v=12';
+} from './visualiser.js?v=13';
+import { DEMO_TUNES } from './demo.js?v=13';
+import { exportWav, exportFlac, exportOgg, oggMime } from './export.js?v=13';
+import { initSampleRecorder } from './sample-recorder.js?v=13';
+import { saveSongFile, importSongFile } from './song-file.js?v=13';
+import { loadRack, saveRack, startAutoSave } from './persist.js?v=13';
+import { listPresets, savePreset, removePreset, presetRack, adoptRack, BUILT_IN_PRESETS } from './presets.js?v=13';
 
 let toastTimer = null;
 
