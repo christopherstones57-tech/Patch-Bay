@@ -136,7 +136,9 @@ before it suspended — silent — so nothing is built until the player touches 
 page. **Start audio** in the toolbar does the same by hand. The title card's tune
 is played through that same context rather than through one of its own — a
 context made as the page loads never starts on a phone — so it leaves the page by
-the route the rack is heard by. The rack's own
+the route the rack is heard by. Every event of the first press is taken as that
+gesture, the end of it as well as the start: a browser that will not start a
+sound from the pointerdown starts it from the click after it. The rack's own
 output is lifted to full scale by a master stage that follows the rack's level:
 the drive is set from the patch's measured peak, so its peaks land just under
 full scale, and a fixed soft top rounds whatever overshoots that, before a final

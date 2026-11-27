@@ -325,8 +325,6 @@ function markAudioOn() {
   app.engine.startSchedulers();
 }
 
-let startingAudio = false;
-
 // The browser refused to start the sound. Say what to do about it, rather than
 // leaving a silent page with a button that looks like it did something.
 function audioBlocked() {
@@ -422,7 +420,7 @@ function startMasterMeter() {
   requestAnimationFrame(tick);
 }
 
-function unlockAudio() {
+function unlockAudio(e) {
   // The first tap also claims the phone's media session: a page that only ever
   // plays Web Audio can be left on the quiet ambient one, where the synth is
   // barely audible however far the phone's own volume is turned up.
@@ -435,25 +433,37 @@ function unlockAudio() {
     markAudioOn();
     return;
   }
-  if (startingAudio || !app.ctx.resume) return;
+  if (!app.ctx.resume) return;
 
-  // One resume at a time: pointerdown, touchstart and click all arrive for the
-  // same tap, and only the first of them should ask.
-  startingAudio = true;
+  // Ask on every event of the press, rather than once for all of them. Browsers
+  // do not agree on which event is the gesture that may start a sound: Chrome
+  // starts a context asked for during the pointerdown, while Safari counts the
+  // one that ends the press — its pointerup, touchend or click — and leaves a
+  // resume asked for before that waiting. A page that asked only once, on the
+  // first of those, stayed silent in Safari: that resume was never answered,
+  // and the click which followed was skipped as a second ask for the same tap.
+  // Asking again costs nothing, since a context on its way up answers at once.
   let resuming;
   try {
     resuming = app.ctx.resume();
-  } catch (e) {
-    resuming = Promise.reject(e);
+  } catch (err) {
+    resuming = Promise.reject(err);
   }
+  // Only an event that ends a press, or a key, can say the page will not play:
+  // a refusal of the first event of a press is a browser asking for the rest of
+  // it, and a warning about it would be wrong.
+  const asked =
+    !e ||
+    e.type === 'pointerup' ||
+    e.type === 'touchend' ||
+    e.type === 'click' ||
+    e.type === 'keydown';
   Promise.resolve(resuming).then(
     () => {
-      startingAudio = false;
       if (app.ctx && app.ctx.state === 'running') markAudioOn();
     },
     () => {
-      startingAudio = false;
-      audioBlocked();
+      if (asked) audioBlocked();
     }
   );
 }
@@ -1448,7 +1458,11 @@ function init() {
   // unable to make a sound. The capture phase means the gesture is seen before
   // the button or key that was tapped handles it, so the context is already
   // running when the tap's own handler asks it to play.
-  for (const type of ['pointerdown', 'touchstart', 'keydown', 'click']) {
+  //
+  // The event that begins a press and the event that ends it are both listened
+  // for: a browser that will not start a sound from the first of those starts it
+  // from the second, so neither may be missing (see unlockAudio).
+  for (const type of ['pointerdown', 'touchstart', 'pointerup', 'touchend', 'keydown', 'click']) {
     document.addEventListener(type, unlockAudio, { capture: true, passive: true });
   }
 

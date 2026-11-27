@@ -298,9 +298,14 @@
 
   startTune();
   // The card's own tap and the first key both count as the gesture that lets the
-  // page make a sound, so both are listened for until the tune is heard.
-  window.addEventListener('pointerdown', startTune);
-  window.addEventListener('keydown', startTune);
+  // page make a sound, so all of them are listened for until the tune is heard.
+  // A press is more than the event that begins it: Safari counts the one that
+  // ends it — its pointerup, touchend or click — and leaves a resume asked for
+  // during the pointerdown waiting, so a card given only the first of those was
+  // silent there while the rack, started again by the click after it, played.
+  // Every event of the press is another chance to ask for the tune.
+  const TUNE_GESTURES = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
+  for (const type of TUNE_GESTURES) window.addEventListener(type, startTune);
 
   // Away with it --------------------------------------------------------------
   let gone = false;
@@ -309,8 +314,7 @@
     if (gone) return;
     gone = true;
     // The tune has had its chance: the page needs no more of these gestures.
-    window.removeEventListener('pointerdown', startTune);
-    window.removeEventListener('keydown', startTune);
+    for (const type of TUNE_GESTURES) window.removeEventListener(type, startTune);
     // A context that never got to play is closed rather than left suspended.
     if (!tuneStarted) window.setTimeout(closeTune, 0);
     card.classList.add('splash-out');
