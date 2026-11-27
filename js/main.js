@@ -51,7 +51,9 @@ import { listPresets, savePreset, removePreset, presetRack, adoptRack, BUILT_IN_
 let toastTimer = null;
 
 // Sit the message just above the transport, so it never covers the transport's
-// buttons or the keys — Rec sample's Stop in particular.
+// buttons or the keys — Rec sample's Stop in particular. It is written at the
+// left of the screen too (#toast in css/app.css), since Stop holds the
+// right-hand end of the transport's row and a centred message sat over it.
 function placeToast(el) {
   const transport = document.getElementById('transport');
   const gap = 8;

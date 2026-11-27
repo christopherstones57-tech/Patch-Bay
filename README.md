@@ -283,9 +283,10 @@ the keys play it straight away. Recording starts on the tap; three beeps count
 it in, and they go straight to the speakers so they never reach the take. The
 button reads **■ Stop** for the whole take and never changes size, and a message
 above the transport shows the seconds and the level being captured — it is placed
-above the transport's buttons, so nothing covers Stop, and touching the transport
-clears it. The take is trimmed, normalised and faded so it starts without a
-click; tap **Stop** to finish early.
+above the transport's buttons at the left of the screen, so nothing covers Stop
+at the right-hand end of its row, and touching the transport clears it. The take
+is trimmed, normalised and faded so it starts without a click; tap **Stop** to
+finish early.
 
 **Mic** is the one button that turns a voice take on and off: tap it, allow the
 prompt, and it stays on — `Mic on` — for as many takes as you like; **Rec

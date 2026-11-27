@@ -1629,11 +1629,19 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
 
 #toast {
   position: fixed;
-  left: 50%;
+  /* The message is written at the left of the screen. A take's Stop sits at the
+     right-hand end of the transport's row, so a message centred on the screen
+     sat right over it; anchored to the left it stays well clear of the button.
+     Left to itself the box is as wide as its words, so a long message — the
+     running count of a take, say — wraps to two lines rather than into a tall
+     block over the rack. */
+  left: calc(8px + env(safe-area-inset-left));
+  right: auto;
+  max-width: 74vw;
   /* main.js lifts this above the transport before showing it, so a message
      never covers the transport's buttons; this is only a starting point. */
   bottom: calc(150px + env(safe-area-inset-bottom));
-  transform: translate(-50%, 10px);
+  transform: translate(0, 10px);
   background: linear-gradient(#242c3c, #171d28);
   border: 1px solid #39435a;
   color: var(--text);
@@ -1645,11 +1653,10 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
-  max-width: 84vw;
-  text-align: center;
+  text-align: left;
   z-index: 400;
 }
-#toast.show { opacity: 1; transform: translate(-50%, 0); }
+#toast.show { opacity: 1; transform: translate(0, 0); }
 
 
 /* The door before the card -------------------------------------------------
