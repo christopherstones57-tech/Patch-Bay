@@ -133,7 +133,11 @@ finger, octave buttons, and `a w s e d f t g y h u j k` on a computer keyboard.
 The first tap, key or click anywhere in the page switches the audio on: browsers
 will not let a page make sound before one, and Chrome keeps a context started
 before it suspended — silent — so nothing is built until the player touches the
-page. **Start audio** in the toolbar does the same by hand. The title card's tune
+page. **Start audio** in the toolbar does the same by hand. The page opens on a
+**door** of its own that says **Press the screen to start**: that press is the
+gesture the browser is waiting for, and it is the one that puts the title card up
+and plays the card's tune, so the tune is heard as the card arrives rather than
+behind a card that had been standing there silently. The title card's tune
 is played through that same context rather than through one of its own — a
 context made as the page loads never starts on a phone — so it leaves the page by
 the route the rack is heard by. Every event of the first press is taken as that
@@ -348,7 +352,7 @@ cutoff inputs do the same, so modulation stays musical.
 - `js/visualiser.js` — the full-screen audio visualiser
 - `js/demo.js` — the demo tunes and the rack each one is played on
 - `js/main.js` — bootstrap, module picker, toolbar
-- `js/splash.js` — the title card on the way in: its letters, its fit to the window, and its tune
+- `js/splash.js` — the door on the way in and the title card behind it: its letters, its fit to the window, and its tune
 - `js/counter.js` — the visitors chip in the title row, counted by Abacus
 
 ## Hosting it

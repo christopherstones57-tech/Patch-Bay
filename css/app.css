@@ -1652,6 +1652,71 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
 #toast.show { opacity: 1; transform: translate(-50%, 0); }
 
 
+/* The door before the card -------------------------------------------------
+   Nothing may make a sound until the page has been touched, so the first thing
+   on screen is one line of words asking for that touch. js/splash.js takes the
+   press: it takes this away, puts the card up and plays the card's tune from the
+   same press. */
+
+#pre-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(14px, 3.4vh, 30px);
+  overflow: hidden;
+  padding: 24px;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 46%, rgba(74, 30, 120, 0.9), rgba(9, 7, 20, 0.98) 64%),
+    #05040c;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: opacity 0.45s ease;
+  /* A last resort: a page whose script never arrived must not stay a door that
+     will not open, so this stands aside by itself and leaves the app behind it. */
+  animation: splash-away 0.9s ease 20s forwards;
+}
+
+#pre-splash.pre-splash-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pre-splash-kicker {
+  margin: 0;
+  font-family: "Arial Rounded MT Bold", "Marker Felt", "Chalkboard SE", "Arial Black", system-ui, sans-serif;
+  font-weight: 900;
+  font-size: clamp(26px, 9vw, 52px);
+  line-height: 1.04;
+  letter-spacing: 0.04em;
+  color: hsl(300 92% 70%);
+  text-shadow:
+    0 0.03em 0 hsl(300 92% 52%),
+    0 0.07em 0 hsl(300 90% 40%),
+    0 0.11em 0 hsl(300 86% 28%),
+    0 0 0.8em hsl(300 100% 66% / 0.5);
+}
+
+.pre-splash-start {
+  margin: 0;
+  max-width: 100%;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(11px, 3.4vw, 13px);
+  letter-spacing: 0.28em;
+  text-indent: 0.28em;
+  text-transform: uppercase;
+  color: rgba(255, 240, 208, 0.86);
+  text-shadow: 0 0 14px rgba(255, 214, 140, 0.6);
+  animation: splash-breathe 2.4s ease-in-out infinite;
+}
+
 /* Splash -----------------------------------------------------------------
    The card that stands in front of the app while the rack is built: the maker's
    name in coloured, extruded letters over a starburst. js/splash.js splits the
@@ -1676,8 +1741,34 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
   -webkit-user-select: none;
   user-select: none;
   transition: opacity 0.6s ease, transform 0.6s ease;
-  /* A last resort: if js/splash.js never arrives, the card still stands aside
-     rather than hiding the app behind it for good. */
+}
+
+/* Held back until the door is pressed. It is made invisible rather than taken
+   out of the layout, because js/splash.js measures the card to fit it to the
+   window before it is ever seen; its letters are held still as well, so their
+   entrance and the turning starburst are spent for the press rather than for a
+   wait nobody is watching. */
+#splash.splash-waiting {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: none;
+  animation: none;
+}
+
+#splash.splash-waiting .splash-rays,
+#splash.splash-waiting .splash-rays.thin,
+#splash.splash-waiting .splash-glow,
+#splash.splash-waiting .splash-name,
+#splash.splash-waiting .splash-letter,
+#splash.splash-waiting .splash-tap {
+  animation: none !important;
+}
+
+/* A last resort: if js/splash.js dies while the card is up, the card still
+   stands aside rather than hiding the app behind it for good. It is counted
+   from the moment the card comes up, not from the page's first frame. */
+#splash:not(.splash-waiting) {
   animation: splash-away 0.8s ease 8s forwards;
 }
 
@@ -1847,6 +1938,7 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
   .splash-glow,
   .splash-name,
   .splash-tap,
+  .pre-splash-start,
   .splash-letter {
     animation: none !important;
   }

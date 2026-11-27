@@ -2,16 +2,30 @@
 // name in big coloured letters, a starburst turning behind it, and a little tune
 // when it is tapped.
 //
+// In front of it stands a door with nothing on it but a line of words: press the
+// screen to start. A browser will not let a page make a sound before the page has
+// been touched, so the tune could never be played as the page loaded: the card
+// stood there silent, and the tune was left to whatever gesture happened to come
+// next — by which time the card was already on its way out. The door is that
+// gesture. The press on it takes the door away, brings the card up and asks for
+// the tune inside the same press, so the card arrives with the tune it was
+// written for instead of standing silent.
+//
 // A plain script rather than a module, so it runs before js/main.js has fetched
-// and built the whole synth: the card is on screen from the first frame. It owns
-// the card completely — it colours the letters, plays the tune and takes the card
-// away. The first tap on it is also the one js/main.js listens for to start the
-// app's own audio, since a browser only lets a page make a sound after a gesture.
+// and built the whole synth: the door is on screen from the first frame. It owns
+// both of them completely — it colours the letters, plays the tune and takes each
+// of them away. The press that opens the door is also the one js/main.js listens
+// for to start the app's own audio: that listener runs as the press is captured,
+// so the rack's context is built and running by the time the card asks for one
+// to play through.
 (function () {
   'use strict';
 
   const card = document.getElementById('splash');
   if (!card) return;
+  // The door in front of the card. A page without one — an older copy of
+  // index.html, say — starts as it used to, with the card already up.
+  const door = document.getElementById('pre-splash');
 
   // Letters ------------------------------------------------------------------
   //
@@ -78,23 +92,20 @@
   // here rather than played through the synth because the sound has to be there
   // whatever the state of the rack.
   //
-  // It is wanted as the card arrives, not only when the card is tapped, so it is
-  // asked for at once. A browser will not start a page's sound before the page
-  // has been touched, and leaves the context suspended until it is: the tune is
-  // then played on the first tap or key, which is the same gesture that starts
-  // the app itself. Either way it is heard once.
+  // It is asked for on the press that opens the door, and on nothing else: a
+  // browser will not start a page's sound before the page has been touched, so a
+  // tune asked for as the page loaded was one a phone kept suspended for good,
+  // and the card stood there silent. The door's press is that touch, and the tune
+  // is asked for inside it.
   //
   // Where it is heard from matters as much as when. It plays through the same
   // AudioContext as the synth whenever that one exists — js/main.js builds it in
-  // the page's first gesture, before this file's own handler for that tap runs,
-  // and leaves it on window.patchBayAudio to be found (see rackAudio). What used
-  // to go wrong was a second context of the tune's own, made as the page loaded:
-  // a phone keeps such a one suspended however often it is asked, so the card
-  // was silent while the rack, on the context the tap built, played. One context
-  // for the page means the tune leaves by the same route as everything else. A
-  // tune asked for when there is no rack context yet — a browser that lets a
-  // page play as it loads, or a tap that arrives before main.js has run — builds
-  // one of its own, and it is thrown away if it never starts.
+  // the page's first gesture, as that gesture is captured, before this file's own
+  // handler for the same press runs, and leaves it on window.patchBayAudio to be
+  // found (see rackAudio). One context for the page means the tune leaves by the
+  // same route as everything else. A tune asked for when there is no rack context
+  // yet — a press that arrives before main.js has built its own — builds one of
+  // its own inside the same press, and it is thrown away if it never starts.
   const ARPEGGIO = [
     [0.0, 523.25, 0.55, 0.5],
     [0.1, 659.25, 0.55, 0.5],
@@ -281,12 +292,14 @@
   }
 
   function startTune() {
-    if (tuneStarted || !card.parentNode) return;
+    // Until the door has been pressed the page has not been touched, so there is
+    // no gesture a sound may be started from yet.
+    if (!revealed || tuneStarted || !card.parentNode) return;
     if (card.classList.contains('splash-out')) return;
     claimPlaybackSession();
     // A context of this file's own that the browser never started is thrown away
     // rather than asked again: a phone can keep one made before the page was
-    // touched suspended however often it is asked. Built here, inside the tap, it
+    // touched suspended however often it is asked. Built here, inside the press, it
     // is one the browser will start — or, with main.js already up, the tune
     // simply takes the rack's (see tuneAudio).
     if (tuneCtx && tuneOwn && tuneCtx.state !== 'running') closeTune();
@@ -296,14 +309,14 @@
     whenRunning(tuneCtx, scheduleTune);
   }
 
-  startTune();
-  // The card's own tap and the first key both count as the gesture that lets the
+  // The door's press and the first key both count as the gesture that lets the
   // page make a sound, so all of them are listened for until the tune is heard.
   // A press is more than the event that begins it: Safari counts the one that
   // ends it — its pointerup, touchend or click — and leaves a resume asked for
-  // during the pointerdown waiting, so a card given only the first of those was
+  // during the pointerdown waiting, so a tune given only the first of those was
   // silent there while the rack, started again by the click after it, played.
-  // Every event of the press is another chance to ask for the tune.
+  // Every event of the press, and of any press after it, is another chance to
+  // ask for the tune.
   const TUNE_GESTURES = ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'];
   for (const type of TUNE_GESTURES) window.addEventListener(type, startTune);
 
@@ -326,23 +339,58 @@
     }, 700);
   }
 
+  // Up with it ----------------------------------------------------------------
+  //
+  // The door is what the page waits on. Pressing it is the first gesture the page
+  // gets, so it is the one that may start a sound: the door goes, the card comes
+  // up, and the tune is asked for inside the press itself.
+  let revealed = false;
+
+  function reveal() {
+    if (revealed) return;
+    revealed = true;
+    if (door && door.parentNode) {
+      door.classList.add('pre-splash-out');
+      // Gone once it has faded, so the card behind it is the only layer left.
+      window.setTimeout(() => {
+        if (door.parentNode) door.parentNode.removeChild(door);
+      }, 500);
+    }
+    // Held still while the door was up (css/app.css), the card's letters arrive
+    // on their own beats from here, so the entrance is played for the press.
+    card.classList.remove('splash-waiting');
+    // Inside the press: a browser starts a context made within a gesture, and a
+    // resume asked for outside one may be left waiting for ever.
+    startTune();
+    // A card nobody touches once it is up still stands aside by itself.
+    window.setTimeout(dismiss, 6000);
+  }
+
   function begin() {
     if (gone) return;
-    // The tune is asked for as the card arrives, so it is usually already
-    // playing; if the browser held it back until the page was touched, this tap
-    // is what lets it out.
-    startTune();
+    reveal();
     // The tune plays on over the rack: the card starts fading as the last note
     // lands rather than holding the app back for the whole of it.
     window.setTimeout(dismiss, 950);
   }
 
-  card.addEventListener('pointerdown', begin);
-  document.addEventListener('keydown', begin, { once: true });
+  if (door) {
+    // pointerdown is the press everywhere it exists; click is there for a browser
+    // that sends no pointer event, and reveal is the first of them only.
+    door.addEventListener('pointerdown', reveal);
+    door.addEventListener('click', reveal);
+    // A key press is a press of the screen too, for a player at a keyboard.
+    document.addEventListener('keydown', reveal, { once: true });
+    card.addEventListener('pointerdown', begin);
+  } else {
+    // No door in the page: the card is on screen from the first frame, as it was
+    // before there was a door to open, and any press will play the tune.
+    reveal();
+    card.addEventListener('pointerdown', begin);
+    document.addEventListener('keydown', begin, { once: true });
+  }
 
-  // Nobody touched it: a title card should never be a door that will not open, so
-  // it stands aside by itself. A browser that will not start the tune without a
-  // touch simply never hears it, and css/app.css has the same last resort in case
-  // this file never loads at all.
-  window.setTimeout(dismiss, 6000);
+  // A door that is never pressed, or a card nobody touches once it is up, must
+  // not hide the app for good, and css/app.css has the same last resort in case
+  // this file never loads at all: the door stands aside there, and the card too.
 })();

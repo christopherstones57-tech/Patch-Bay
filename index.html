@@ -32,18 +32,25 @@
 <meta name="twitter:image" content="https://christopherstones57-tech.github.io/Patch-Bay/favicon.png">
 <link rel="canonical" href="https://christopherstones57-tech.github.io/Patch-Bay/">
 <link rel="manifest" href="manifest.json">
-<link rel="stylesheet" href="css/app.css?v=21">
+<link rel="stylesheet" href="css/app.css?v=22">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 </head>
 <body>
+<!-- The door in front of the card. A browser will not let a page make a sound
+     before the page has been touched, so the tune could never be played as the
+     page loaded: the card stood there silently. This asks for that touch — js/splash.js
+     takes the press, puts the card up and plays its tune from the same press. -->
+<div id="pre-splash" role="dialog" aria-label="Press the screen to start Patch Bay">
+  <p class="pre-splash-kicker">Patch Bay</p>
+  <p class="pre-splash-start">Press the screen to start</p>
+</div>
 <!-- The card that stands in front of the app while the rack is built: the
      maker's name in coloured, extruded letters over a starburst, with a little
-     tune. js/splash.js colours the letters, asks for the tune as the card
-     arrives and takes the card away — and its first tap is also the gesture the
-     browser needs before the page may make a sound at all, so a browser that
-     holds the tune back lets it out on that tap. -->
-<div id="splash" role="dialog" aria-label="Patch Bay, made by Stonky73 at itch dot io">
+     tune. It is held back (splash-waiting) until the door above is pressed, so
+     its letters arrive for the press rather than behind the door; js/splash.js
+     then colours the letters, plays the tune and takes the card away. -->
+<div id="splash" class="splash-waiting" role="dialog" aria-label="Patch Bay, made by Stonky73 at itch dot io">
   <div class="splash-rays" aria-hidden="true"></div>
   <div class="splash-rays thin" aria-hidden="true"></div>
   <div class="splash-glow" aria-hidden="true"></div>
@@ -305,7 +312,7 @@
     toast.classList.add('show');
   });
 </script>
-<script src="js/splash.js?v=17"></script>
+<script src="js/splash.js?v=18"></script>
 <script src="js/counter.js?v=13"></script>
 <script type="module" src="js/main.js?v=17"></script>
 </body>
