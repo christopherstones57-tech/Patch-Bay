@@ -1528,6 +1528,9 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
   font-size: 14px;
 }
 
+/* The octave buttons and the keys, in the frame around them: a press anywhere on
+   it plays rather than selects, so its own menu is kept away too — the padding
+   between the keys is part of the keybed under a thumb. */
 #keyboard-wrap {
   display: flex;
   align-items: stretch;
@@ -1537,6 +1540,9 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
   border: 1px solid rgba(255, 255, 255, 0.055);
   border-radius: 9px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 6px 14px rgba(0, 0, 0, 0.35);
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 #oct-down,
@@ -1548,6 +1554,12 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
   color: #cfe6f0;
 }
 
+/* The keybed is played by holding a key, sliding off it and coming back, so the
+   press belongs to the patch and to nothing else. iOS takes a press that stays
+   put on text for its own selection — the magnifier and the Copy menu — which
+   opens over the keys while the note that started it still sounds, and takes the
+   next tap for itself. The keys are not text and there is nothing on them to
+   copy, so the selection and the callout it raises are both taken away here. */
 .keys {
   position: relative;
   display: flex;
@@ -1556,9 +1568,19 @@ button.chan.lyric.has::after { color: #e6b6ff; text-shadow: 0 0 8px rgba(230, 18
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.key { position: relative; cursor: pointer; }
+.key {
+  position: relative;
+  cursor: pointer;
+  /* Written on the key as well as on the bed: a press that starts on a key and a
+     press that starts on the bed's own edge are answered the same way. */
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
 
 .key.white {
   flex: 1;

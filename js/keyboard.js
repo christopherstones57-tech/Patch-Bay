@@ -101,6 +101,9 @@ export function initKeyboard() {
   keysEl = document.getElementById('keys');
   renderKeyboard();
 
+  // The transport's own keybed is guarded like a mounted one, so a long press on
+  // it never becomes the browser's selection menu rather than a note.
+  guardKeybed(keysEl);
   keysEl.addEventListener('pointerdown', onKeysDown);
   keysEl.addEventListener('pointermove', onKeysMove);
   window.addEventListener('pointerup', onPointerUp);
@@ -269,8 +272,24 @@ export function mountKeybed(el) {
   if (!el || extraKeybeds.has(el)) return;
   extraKeybeds.add(el);
   fillKeybed(el);
+  guardKeybed(el);
   el.addEventListener('pointerdown', onKeysDown);
   el.addEventListener('pointermove', onKeysMove);
+}
+
+// A keybed is played by holding a key, sliding off it and pressing again — never
+// by selecting anything. A press that stays put on text is answered on iOS with
+// its own menu, the magnifier and Copy, which opens over the keys while the note
+// that started it still sounds and takes the next tap for itself. The keys hold
+// nothing to copy, so every way a browser asks to begin a selection or raise
+// that menu on the bed is turned down. css/app.css takes the callout away; this
+// is the same answer for the events a long press becomes — a context menu, a
+// selection starting, or a key dragged as if it were something to move.
+function guardKeybed(el) {
+  const block = (e) => e.preventDefault();
+  el.addEventListener('contextmenu', block);
+  el.addEventListener('selectstart', block);
+  el.addEventListener('dragstart', block);
 }
 
 function keybedElements() {
